@@ -38,10 +38,9 @@ public class ClajServerService: IHostedService
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Stopping CLaJ server");
-        _server.Close();
-        return Task.CompletedTask;
+        await _server.StopAsync();
     }
 }

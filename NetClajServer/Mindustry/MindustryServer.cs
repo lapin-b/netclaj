@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 
@@ -10,14 +11,15 @@ public class MindustryServer
 
     private readonly TcpListener _tcpListener;
     private readonly UdpClient _udpListener;
+    private Task? _tcpServerTask;
+    private Task? _udpServerTask;
 
     // The cancellation token source is set when the server starts and
     // unset when the server stops. The downstream code shouldn't get
     // a null value.
-    private CancellationTokenSource _stopAcceptingConnections = null!;
-    private CancellationToken ServerStopToken => _stopAcceptingConnections.Token;
+    private CancellationTokenSource? _cts;
 
-    public Dictionary<long, Connection> Connections = new();
+    private ConcurrentDictionary<long, Connection> Connections = new();
  
     public MindustryServer(ClajServerConfiguration config, ILogger<MindustryServer> logger)
     {
@@ -29,46 +31,93 @@ public class MindustryServer
 
     public void Start()
     {
-        _logger.LogDebug("Starting TCP listener");
-        _stopAcceptingConnections = new CancellationTokenSource();
+        // Make sure the server is not started twice
+        if (_cts is not null) return;
+        
+        _logger.LogDebug("Starting server");
+        _cts = new CancellationTokenSource();
         _tcpListener.Start();
-        Task.Run(ServerAcceptLoop, ServerStopToken);
-        Task.Run(UdpServerLoop, ServerStopToken);
+
+        _tcpServerTask = TcpServerLoop(_cts.Token);
+        _udpServerTask = UdpServerLoop(_cts.Token);
     }
 
-    public void Close()
+    public async Task StopAsync()
     {
-        _logger.LogDebug("Canceling listeners");
-        _stopAcceptingConnections.Cancel();
-        _stopAcceptingConnections.Dispose();
+        var cts = _cts;
+        if (cts is null) return;
+        _cts = null;
+        
+        _logger.LogDebug("Stopping server");
+        await cts.CancelAsync();
+        _tcpListener.Stop();
+        _udpListener.Close();
+
+        await Task.WhenAll(
+            _tcpServerTask ?? Task.CompletedTask,
+            _udpServerTask ?? Task.CompletedTask
+        );
+
+        foreach (var connection in Connections.Values)
+        {
+            await connection.DisposeAsync();
+        }
+        
+        Connections.Clear();
+        cts.Dispose();
     }
 
-    private async Task ServerAcceptLoop()
+    private async Task TcpServerLoop(CancellationToken ct)
     {
-        while (!_stopAcceptingConnections.IsCancellationRequested)
+        while (!ct.IsCancellationRequested)
         {
             _logger.LogDebug("Waiting for a new TCP connection");
-            var client = await _tcpListener.AcceptTcpClientAsync(ServerStopToken);
+            TcpClient client;
+            try
+            {
+                client = await _tcpListener.AcceptTcpClientAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+                break;
+            }
+            catch (ObjectDisposedException) when (ct.IsCancellationRequested) {
+                break;
+            }
+            catch (SocketException) when (ct.IsCancellationRequested) {
+                break;
+            }
             
             var connection = new Connection(client, _udpListener, OnConnectionClosed)
             {
                 Id = GenerateConnectionId()
             };
+
+            connection.Start(ct);
+            Connections.TryAdd(connection.Id, connection);
             
-            Connections.Add(connection.Id, connection);
-
-            _ = Task.Run(() => connection.ReceiveLoop(ServerStopToken), ServerStopToken);
+            _logger.LogInformation("Connection {ConnectionID} added", connection.Id);
         }
-
-        _tcpListener.Stop();
     }
 
-    private async Task UdpServerLoop()
+    private async Task UdpServerLoop(CancellationToken ct)
     {
-        while (!_stopAcceptingConnections.IsCancellationRequested)
+        while (!ct.IsCancellationRequested)
         {
-            _logger.LogDebug("Waiting for an UDP message");
-            var message = await _udpListener.ReceiveAsync(ServerStopToken);
+            UdpReceiveResult message;
+            try
+            {
+                _logger.LogDebug("Waiting for an UDP message");
+                message = await _udpListener.ReceiveAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+                break;
+            }
+            catch (ObjectDisposedException) when (ct.IsCancellationRequested) {
+                break;
+            }
+            catch (SocketException) when (ct.IsCancellationRequested) {
+                break;
+            }
         }
         
         _udpListener.Close();
@@ -88,7 +137,7 @@ public class MindustryServer
     private void OnConnectionClosed(Connection connection)
     {
         _logger.LogInformation("Connection {ConnectionId} closed. Freeing resources", connection.Id);
-        Connections.Remove(connection.Id);
-        connection.Dispose();
+        Connections.TryRemove(connection.Id, out _);
+        _ = connection.DisposeAsync();
     }
 }
