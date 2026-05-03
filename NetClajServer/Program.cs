@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NetClajServer.Mindustry;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -39,7 +40,7 @@ class Program
                 .AddSerilog()
             )
             
-            .AddSingleton<ClajServer>()
+            .AddSingleton<MindustryServer>()
             .AddSingleton<ClajServerConfiguration>(services =>
             {
                 var config = services.GetRequiredService<IConfiguration>()

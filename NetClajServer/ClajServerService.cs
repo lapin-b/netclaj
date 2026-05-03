@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NetClajServer.Mindustry;
 
 namespace NetClajServer;
 
@@ -10,11 +11,11 @@ public class ClajServerService: IHostedService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<ClajServerService> _logger;
-    private ClajServer _server;
+    private MindustryServer _server;
 
     public ClajServerService(
         IConfiguration configuration,
-        ClajServer server,
+        MindustryServer server,
         ILogger<ClajServerService> logger
     )
     {
