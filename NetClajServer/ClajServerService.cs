@@ -2,19 +2,25 @@
 using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace NetClajServer;
 
 public class ClajServerService: IHostedService
 {
     private readonly IConfiguration _configuration;
-    private ClajServer? _server;
+    private readonly ILogger<ClajServerService> _logger;
+    private ClajServer _server;
 
     public ClajServerService(
-        IConfiguration configuration
+        IConfiguration configuration,
+        ClajServer server,
+        ILogger<ClajServerService> logger
     )
     {
         _configuration = configuration;
+        _server = server;
+        _logger = logger;
     }
     
     public Task StartAsync(CancellationToken cancellationToken)
@@ -25,7 +31,7 @@ public class ClajServerService: IHostedService
             throw new Exception("No ClajServer configuration section found or invalid");
         }
 
-        _server = new ClajServer(serverConfiguration);
+        _logger.LogInformation("Starting CLaJ server");
         _server.Start();
         
         return Task.CompletedTask;
@@ -33,7 +39,8 @@ public class ClajServerService: IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _server?.Close();
+        _logger.LogInformation("Stopping CLaJ server");
+        _server.Close();
         return Task.CompletedTask;
     }
 }
