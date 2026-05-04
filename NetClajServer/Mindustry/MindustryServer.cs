@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Datastructures;
+using NetClajServer.Packets;
 
 namespace NetClajServer.Mindustry;
 
@@ -96,8 +97,9 @@ public class MindustryServer
 
             connection.Start(ct);
             Connections.TryAdd(connection.Id, connection);
-            
-            _logger.LogInformation("Connection {ConnectionID} added", connection.Id);
+            _logger.LogInformation("Connection {ConnectionID} added. Connection ID sent", connection.Id);
+
+            await connection.SendTcp(new RegisterTcpPacket { ConnectionId = connection.Id });
         }
     }
 

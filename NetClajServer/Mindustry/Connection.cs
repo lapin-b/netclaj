@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using NetClajServer.Packets;
 
 namespace NetClajServer.Mindustry;
 
@@ -9,6 +10,7 @@ public class Connection: IAsyncDisposable
 
     private readonly TcpClient _tcp;
     public UdpClient _udp;
+    private IPEndPoint? _udpEndoint;
     private readonly Action<Connection> _onClosed;
 
     private readonly CancellationTokenSource _cts = new();
@@ -90,5 +92,13 @@ public class Connection: IAsyncDisposable
             _cts.Dispose();
             // The UDP client isn't disposed of because it's the server's copy
         }
+    }
+
+    public async Task SendTcp(IMindustryPacket packet)
+    {
+        var serializer = new Serializer();
+        var sendBytes = serializer.Serialize(packet);
+        await _tcp.GetStream().WriteAsync(sendBytes);
+        await _tcp.GetStream().FlushAsync();
     }
 }
