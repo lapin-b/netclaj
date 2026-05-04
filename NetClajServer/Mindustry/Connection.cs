@@ -32,6 +32,8 @@ public class Connection: IAsyncDisposable
     private async Task ReceiveLoop(CancellationToken token)
     {
         var networkStream = _tcp.GetStream();
+        var binaryReader = new BinaryReader(_tcp.GetStream());
+        
         var buffer = new byte[_tcp.ReceiveBufferSize];
         try
         {

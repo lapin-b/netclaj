@@ -38,8 +38,8 @@ public class MindustryServer
         _cts = new CancellationTokenSource();
         _tcpListener.Start();
 
-        _tcpServerTask = TcpServerLoop(_cts.Token);
-        _udpServerTask = UdpServerLoop(_cts.Token);
+        _tcpServerTask = TcpAcceptLoop(_cts.Token);
+        _udpServerTask = UdpReceiveLoop(_cts.Token);
     }
 
     public async Task StopAsync()
@@ -67,7 +67,7 @@ public class MindustryServer
         cts.Dispose();
     }
 
-    private async Task TcpServerLoop(CancellationToken ct)
+    private async Task TcpAcceptLoop(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
@@ -76,6 +76,7 @@ public class MindustryServer
             try
             {
                 client = await _tcpListener.AcceptTcpClientAsync(ct);
+                client.NoDelay = true;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 break;
@@ -99,7 +100,7 @@ public class MindustryServer
         }
     }
 
-    private async Task UdpServerLoop(CancellationToken ct)
+    private async Task UdpReceiveLoop(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
