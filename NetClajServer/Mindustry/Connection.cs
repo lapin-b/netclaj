@@ -34,14 +34,16 @@ public class Connection: IAsyncDisposable
         var networkStream = _tcp.GetStream();
         var binaryReader = new BinaryReader(_tcp.GetStream());
         
-        var buffer = new byte[_tcp.ReceiveBufferSize];
+        var networkBuffer = new byte[_tcp.ReceiveBufferSize];
         try
         {
             while (!token.IsCancellationRequested)
             {
-                var readBytesCount = await networkStream.ReadAsync(buffer, token);
+                var readBytesCount = await networkStream.ReadAsync(networkBuffer, token);
                 if (readBytesCount == 0) break; // remote closed the connection
-                await networkStream.WriteAsync(buffer.AsMemory(0, readBytesCount), token);
+                
+                var buffer = networkBuffer.AsMemory(0, readBytesCount);
+                await networkStream.WriteAsync(buffer, token);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
