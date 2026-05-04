@@ -1,4 +1,4 @@
-﻿namespace NetClajServer;
+﻿namespace NetClajServer.Datastructures;
 
 public class ClajServerConfiguration
 {

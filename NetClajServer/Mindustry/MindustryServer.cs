@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
+using NetClajServer.Datastructures;
 
 namespace NetClajServer.Mindustry;
 
