@@ -6,7 +6,7 @@ using NetClajServer.Packets;
 
 namespace NetClajServer.Mindustry;
 
-public class Connection: IAsyncDisposable
+public partial class Connection: IAsyncDisposable
 {
     public int Id { get; init; }
 
@@ -39,6 +39,19 @@ public class Connection: IAsyncDisposable
         var linked = CancellationTokenSource.CreateLinkedTokenSource(serverToken, _cts.Token);
         _receiveLoopTask = ReceiveLoop(linked.Token);
     }
+    
+    public async Task SendTcp(IMindustryPacket packet)
+    {
+        var sendBytes = Serializer.Serialize(packet);
+        await _tcp.GetStream().WriteAsync(sendBytes);
+        await _tcp.GetStream().FlushAsync();
+    }
+
+    public async Task SendTcp(Memory<byte> buffer)
+    {
+        await _tcp.GetStream().WriteAsync(buffer);
+        await _tcp.GetStream().FlushAsync();
+    }
 
     private async Task ReceiveLoop(CancellationToken token)
     {
@@ -52,20 +65,12 @@ public class Connection: IAsyncDisposable
             {
                 await networkStream.ReadExactlyAsync(packetHeader, token);
                 var nextPacketLength = BinaryPrimitives.ReadUInt16BigEndian(packetHeader);
-                
-                if (_logger.IsEnabled(LogLevel.Debug))
-                {
-                    _logger.LogDebug("{ConnectionID}: expecting {length} bytes", Id, nextPacketLength);
-                }
+                DebugExpectedBytesInPacket(Id, nextPacketLength);
                 
                 var packetContent = new byte[nextPacketLength];
                 await networkStream.ReadExactlyAsync(packetContent, token);
                 var mindustryPacket = Serializer.Deserialize(new ReadOnlyMemory<byte>(packetContent));
-                
-                if(_logger.IsEnabled(LogLevel.Debug))
-                {
-                    _logger.LogDebug("{ConnectionID}: got a {PacketName}", Id, mindustryPacket.GetType().FullName);
-                }
+                DebugDecodedIMindustryPacket(Id, mindustryPacket.GetType().FullName!);
 
                 await _server.HandleMindustryPacket(this, mindustryPacket);
             }
@@ -105,6 +110,12 @@ public class Connection: IAsyncDisposable
         }
     }
 
+    [LoggerMessage(LogLevel.Debug, Message = "{ConnectionId}: expecting {length} bytes")]
+    private partial void DebugExpectedBytesInPacket(int connectionId, int length);
+
+    [LoggerMessage(LogLevel.Debug, Message = "{ConnectionId}: decoded a {PacketImpl} packet")]
+    private partial void DebugDecodedIMindustryPacket(int connectionId, string packetImpl);
+    
     public async ValueTask DisposeAsync()
     {
         await _cts.CancelAsync();
@@ -125,17 +136,5 @@ public class Connection: IAsyncDisposable
             // The UDP client isn't disposed of because it's the server's copy
         }
     }
-
-    public async Task SendTcp(IMindustryPacket packet)
-    {
-        var sendBytes = Serializer.Serialize(packet);
-        await _tcp.GetStream().WriteAsync(sendBytes);
-        await _tcp.GetStream().FlushAsync();
-    }
-
-    public async Task SendTcp(Memory<byte> buffer)
-    {
-        await _tcp.GetStream().WriteAsync(buffer);
-        await _tcp.GetStream().FlushAsync();
-    }
+   
 }
