@@ -71,6 +71,18 @@ public class MindustryServer
         cts.Dispose();
     }
 
+    public async Task HandleMindustryPacket(Connection connection, IMindustryPacket packet)
+    {
+        
+    }
+
+    public Task CleanConnectionState(Connection connection)
+    {
+        _logger.LogInformation("Connection {ConnectionId} closed", connection.Id);
+        Connections.TryRemove(connection.Id, out _);
+        return connection.DisposeAsync().AsTask();
+    }
+
     private async Task TcpAcceptLoop(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
@@ -137,12 +149,5 @@ public class MindustryServer
         } while (Connections.ContainsKey(connectionId));
 
         return connectionId;
-    }
-
-    public Task CleanConnectionState(Connection connection)
-    {
-        _logger.LogInformation("Connection {ConnectionId} closed", connection.Id);
-        Connections.TryRemove(connection.Id, out _);
-        return connection.DisposeAsync().AsTask();
     }
 }

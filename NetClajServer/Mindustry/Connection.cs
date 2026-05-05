@@ -66,6 +66,8 @@ public class Connection: IAsyncDisposable
                 {
                     _logger.LogDebug("{ConnectionID}: got a {PacketName}", Id, mindustryPacket.GetType().FullName);
                 }
+
+                await _server.HandleMindustryPacket(this, mindustryPacket);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
