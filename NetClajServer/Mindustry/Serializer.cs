@@ -1,4 +1,5 @@
-﻿using NetClajServer.Datastructures;
+﻿using System.Runtime.InteropServices;
+using NetClajServer.Datastructures;
 using NetClajServer.Packets;
 
 namespace NetClajServer.Mindustry;
@@ -27,9 +28,25 @@ public class Serializer
         return memoryStream.ToArray();
     }
 
-    public IMindustryPacket Deserialize(Memory<byte> payload)
+    public IMindustryPacket Deserialize(ReadOnlyMemory<byte> payload)
     {
-        var binaryReader = new BinaryReader(new MemoryStream(payload.ToArray()));
+        Stream stream;
+        if (MemoryMarshal.TryGetArray(payload, out var segment) && segment.Array is not null)
+        {
+            stream = new MemoryStream(
+                segment.Array,
+                segment.Offset,
+                segment.Count,
+                false,
+                true
+            );
+        }
+        else
+        {
+            stream = new MemoryStream(payload.ToArray(), writable: false);
+        }
+        
+        var binaryReader = new BinaryReader(stream);
 
         _ = binaryReader.ReadInt16BigEndian(); // We don't care about the size of the packet
         var packetType = binaryReader.ReadSByte();
