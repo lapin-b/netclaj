@@ -4,9 +4,9 @@ using NetClajServer.Packets;
 
 namespace NetClajServer.Mindustry;
 
-public class Serializer
+public static class Serializer
 {
-    public byte[] Serialize(IMindustryPacket packet)
+    public static byte[] Serialize(IMindustryPacket packet)
     {
         var memoryStream = new MemoryStream(1024);
         var binaryWriter = new BinaryWriter(memoryStream);
@@ -28,7 +28,7 @@ public class Serializer
         return memoryStream.ToArray();
     }
 
-    public IMindustryPacket Deserialize(ReadOnlyMemory<byte> payload)
+    public static IMindustryPacket Deserialize(ReadOnlyMemory<byte> payload)
     {
         Stream stream;
         if (MemoryMarshal.TryGetArray(payload, out var segment) && segment.Array is not null)
@@ -47,8 +47,6 @@ public class Serializer
         }
         
         var binaryReader = new BinaryReader(stream);
-
-        _ = binaryReader.ReadInt16BigEndian(); // We don't care about the size of the packet
         var packetType = binaryReader.ReadSByte();
 
         IMindustryPacket? packet = null;
@@ -57,15 +55,12 @@ public class Serializer
         {
             case PacketType.Framework:
                 return DecodeFrameworkPacket(binaryReader);
-            
-            default:
-                throw new NotImplementedException();
         }
 
         throw new NotImplementedException();
     }
 
-    private IMindustryPacket DecodeFrameworkPacket(BinaryReader reader)
+    private static IMindustryPacket DecodeFrameworkPacket(BinaryReader reader)
     {
         
         var packetType = reader.ReadByte();
