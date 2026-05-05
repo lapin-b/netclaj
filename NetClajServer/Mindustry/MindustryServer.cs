@@ -10,6 +10,7 @@ namespace NetClajServer.Mindustry;
 public class MindustryServer
 {
     private readonly ILogger<MindustryServer> _logger;
+    private readonly ILoggerProvider _loggerProvider;
 
     private readonly TcpListener _tcpListener;
     private readonly UdpClient _udpListener;
@@ -23,10 +24,11 @@ public class MindustryServer
 
     private ConcurrentDictionary<long, Connection> Connections = new();
  
-    public MindustryServer(ClajServerConfiguration config, ILogger<MindustryServer> logger)
+    public MindustryServer(ClajServerConfiguration config, ILogger<MindustryServer> logger, ILoggerProvider loggerProvider)
     {
         _logger = logger;
-        
+        _loggerProvider = loggerProvider;
+
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
     }
@@ -90,7 +92,7 @@ public class MindustryServer
                 break;
             }
             
-            var connection = new Connection(client, _udpListener, this)
+            var connection = new Connection(client, _udpListener, this, _loggerProvider.CreateLogger(nameof(Connection)))
             {
                 Id = GenerateConnectionId()
             };

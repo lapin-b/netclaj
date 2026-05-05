@@ -1,5 +1,7 @@
-﻿using System.Net;
+﻿using System.Buffers.Binary;
+using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 using NetClajServer.Packets;
 
 namespace NetClajServer.Mindustry;
@@ -8,24 +10,27 @@ public class Connection: IAsyncDisposable
 {
     public int Id { get; init; }
 
+    // Connections
     private readonly TcpClient _tcp;
     public UdpClient _udp;
     private IPEndPoint? _udpEndoint;
-
     private readonly MindustryServer _server;
+    private readonly ILogger _logger;
 
+    // Connection state management and shutdown tasks
     private readonly CancellationTokenSource _cts = new();
-    private Task? _receiveLoopTask;
     private int _isClosed;
+    private Task? _receiveLoopTask;
     
-    public Connection(
-        TcpClient tcp, 
+    public Connection(TcpClient tcp,
         UdpClient udp,
-        MindustryServer server)
+        MindustryServer server, 
+        ILogger logger)
     {
         _tcp = tcp;
         _udp = udp;
         _server = server;
+        _logger = logger;
     }
 
     public void Start(CancellationToken serverToken)
@@ -38,31 +43,54 @@ public class Connection: IAsyncDisposable
     private async Task ReceiveLoop(CancellationToken token)
     {
         var networkStream = _tcp.GetStream();
-        var binaryReader = new BinaryReader(_tcp.GetStream());
         
-        var networkBuffer = new byte[_tcp.ReceiveBufferSize];
+        var packetHeader = new byte[sizeof(ushort)];
+
         try
         {
             while (!token.IsCancellationRequested)
             {
-                var readBytesCount = await networkStream.ReadAsync(networkBuffer, token);
-                if (readBytesCount == 0) break; // remote closed the connection
+                await networkStream.ReadExactlyAsync(packetHeader, token);
+                var nextPacketLength = BinaryPrimitives.ReadUInt16BigEndian(packetHeader);
                 
-                var buffer = networkBuffer.AsMemory(0, readBytesCount);
-                await networkStream.WriteAsync(buffer, token);
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug("{ConnectionID}: expecting {length} bytes", Id, nextPacketLength);
+                }
+                
+                var packetContent = new byte[nextPacketLength];
+                await networkStream.ReadExactlyAsync(packetContent, token);
+                var mindustryPacket = Serializer.Deserialize(new ReadOnlyMemory<byte>(packetContent));
+                
+                if(_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug("{ConnectionID}: got a {PacketName}", Id, mindustryPacket.GetType().FullName);
+                }
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            // Connection closure was requested
+            _logger.LogWarning("{ConnectionID} Operation canceled", Id);
         }
         catch (IOException) when (token.IsCancellationRequested || !_tcp.Connected)
         {
             // Remote side broke the connection
+            _logger.LogWarning("{ConnectionID} Remote closed the connection (IOException)", Id);
         }
-        catch (SocketException) when (token.IsCancellationRequested)
+        catch (SocketException e) when (token.IsCancellationRequested)
         {
             // Whatever happens if the socket blows up in the process of shutting down this connection
+            _logger.LogWarning(e, "{ConnectionID} Something blew up in the process of shutting down", Id);
+        }
+        catch (EndOfStreamException) when (!_tcp.Connected)
+        {
+            // The remote connection closed
+            _logger.LogWarning("{ConnectionID} Remote closed the connection (EndOfStreamException)", Id);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "{ConnectionId} Error while processing the connection loop", Id);
+            throw;
         }
         finally
         {
@@ -98,9 +126,14 @@ public class Connection: IAsyncDisposable
 
     public async Task SendTcp(IMindustryPacket packet)
     {
-        var serializer = new Serializer();
-        var sendBytes = serializer.Serialize(packet);
+        var sendBytes = Serializer.Serialize(packet);
         await _tcp.GetStream().WriteAsync(sendBytes);
+        await _tcp.GetStream().FlushAsync();
+    }
+
+    public async Task SendTcp(Memory<byte> buffer)
+    {
+        await _tcp.GetStream().WriteAsync(buffer);
         await _tcp.GetStream().FlushAsync();
     }
 }
