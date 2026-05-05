@@ -90,15 +90,14 @@ public class MindustryServer
                 break;
             }
             
-            var connection = new Connection(client, _udpListener, OnConnectionClosed)
+            var connection = new Connection(client, _udpListener, this)
             {
                 Id = GenerateConnectionId()
             };
 
             connection.Start(ct);
             Connections.TryAdd(connection.Id, connection);
-            _logger.LogInformation("Connection {ConnectionID} added. Connection ID sent", connection.Id);
-
+            _logger.LogInformation("Client ID {ConnectionID} connected", connection.Id);
             await connection.SendTcp(new RegisterTcpPacket { ConnectionId = connection.Id });
         }
     }
@@ -138,10 +137,10 @@ public class MindustryServer
         return connectionId;
     }
 
-    private void OnConnectionClosed(Connection connection)
+    public Task CleanConnectionState(Connection connection)
     {
-        _logger.LogInformation("Connection {ConnectionId} closed. Freeing resources", connection.Id);
+        _logger.LogInformation("Connection {ConnectionId} closed", connection.Id);
         Connections.TryRemove(connection.Id, out _);
-        _ = connection.DisposeAsync();
+        return connection.DisposeAsync().AsTask();
     }
 }

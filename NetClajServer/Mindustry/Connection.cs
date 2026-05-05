@@ -11,17 +11,21 @@ public class Connection: IAsyncDisposable
     private readonly TcpClient _tcp;
     public UdpClient _udp;
     private IPEndPoint? _udpEndoint;
-    private readonly Action<Connection> _onClosed;
+
+    private readonly MindustryServer _server;
 
     private readonly CancellationTokenSource _cts = new();
     private Task? _receiveLoopTask;
     private int _isClosed;
     
-    public Connection(TcpClient tcp, UdpClient udp, Action<Connection> onClosed)
+    public Connection(
+        TcpClient tcp, 
+        UdpClient udp,
+        MindustryServer server)
     {
         _tcp = tcp;
         _udp = udp;
-        _onClosed = onClosed;
+        _server = server;
     }
 
     public void Start(CancellationToken serverToken)
@@ -66,15 +70,13 @@ public class Connection: IAsyncDisposable
             // the server cancels
             if (Interlocked.Exchange(ref _isClosed, 1) == 0)
             {
-                _onClosed(this);
+                await _server.CleanConnectionState(this);
             }
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isClosed, 1) != 0) return;
-        
         await _cts.CancelAsync();
 
         try
