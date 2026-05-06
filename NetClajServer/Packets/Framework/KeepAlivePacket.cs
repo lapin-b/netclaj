@@ -1,4 +1,4 @@
-﻿namespace NetClajServer.Packets;
+﻿namespace NetClajServer.Packets.Framework;
 
 public class KeepAlivePacket: IMindustryPacket
 {

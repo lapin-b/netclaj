@@ -1,6 +1,6 @@
 ﻿using NetClajServer.Datastructures;
 
-namespace NetClajServer.Packets;
+namespace NetClajServer.Packets.Framework;
 
 public class PingPacket: IMindustryPacket
 {

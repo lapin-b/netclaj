@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using NetClajServer.Datastructures;
 using NetClajServer.Packets;
+using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Mindustry;
 
