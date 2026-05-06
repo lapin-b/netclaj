@@ -143,7 +143,7 @@ public class MindustryServer
             IMindustryPacket packet;
             try
             {
-                packet = Serializer.Deserialize(message.Buffer.AsMemory(2));
+                packet = Serializer.Deserialize(message.Buffer);
             }
             // We don't care about a malformed packet, we just keep on going
             catch (Exception e)
