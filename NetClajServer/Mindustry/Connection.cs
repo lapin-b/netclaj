@@ -62,10 +62,10 @@ public partial class Connection: IAsyncDisposable
             while (!token.IsCancellationRequested)
             {
                 var packetHeader = new byte[sizeof(ushort)];
-                await networkStream.ReadExactlyAsync(packetHeader, token);
+                await ReadExactWithPauseAsync(networkStream, packetHeader, token);
                 var nextPacketLength = BinaryPrimitives.ReadUInt16BigEndian(packetHeader);
                 var packetContent = new byte[nextPacketLength];
-                await networkStream.ReadExactlyAsync(packetContent, token);
+                await ReadExactWithPauseAsync(networkStream, packetContent, token);
 
                 var mindustryPacket = Serializer.Deserialize(new ReadOnlyMemory<byte>(packetContent));
                 await _server.HandleMindustryPacket(this, mindustryPacket);
@@ -102,6 +102,21 @@ public partial class Connection: IAsyncDisposable
             await _server.CleanConnectionState(this);
         }
     }
+
+    private async Task ReadExactWithPauseAsync(Stream stream, Memory<byte> buffer, CancellationToken ct)
+    {
+        var total = 0;
+        while (total < buffer.Length)
+        {
+            var bytesRead = await stream.ReadAsync(buffer[total..], ct);
+            if (bytesRead == 0)
+            {
+                throw new EndOfStreamException("Remote closed the connection");
+            }
+
+            total += bytesRead;
+        }
+    }
     
     public async ValueTask DisposeAsync()
     {
@@ -128,5 +143,4 @@ public partial class Connection: IAsyncDisposable
             // The UDP client isn't disposed of because it's the server's copy
         }
     }
-   
 }
