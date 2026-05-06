@@ -12,8 +12,8 @@ public partial class Connection: IAsyncDisposable
 
     // Connections
     private readonly TcpClient _tcp;
-    public UdpClient _udp;
-    private IPEndPoint? _udpEndoint;
+    private UdpClient _udp;
+    public IPEndPoint? UdpEndpoint { get; set; }
     private readonly MindustryServer _server;
     private readonly ILogger _logger;
 
@@ -56,22 +56,18 @@ public partial class Connection: IAsyncDisposable
     private async Task ReceiveLoop(CancellationToken token)
     {
         var networkStream = _tcp.GetStream();
-        
-        var packetHeader = new byte[sizeof(ushort)];
 
         try
         {
             while (!token.IsCancellationRequested)
             {
+                var packetHeader = new byte[sizeof(ushort)];
                 await networkStream.ReadExactlyAsync(packetHeader, token);
                 var nextPacketLength = BinaryPrimitives.ReadUInt16BigEndian(packetHeader);
-                DebugExpectedBytesInPacket(Id, nextPacketLength);
-                
                 var packetContent = new byte[nextPacketLength];
                 await networkStream.ReadExactlyAsync(packetContent, token);
-                var mindustryPacket = Serializer.Deserialize(new ReadOnlyMemory<byte>(packetContent));
-                DebugDecodedIMindustryPacket(Id, mindustryPacket.GetType().FullName!);
 
+                var mindustryPacket = Serializer.Deserialize(new ReadOnlyMemory<byte>(packetContent));
                 await _server.HandleMindustryPacket(this, mindustryPacket);
             }
         }
@@ -103,21 +99,17 @@ public partial class Connection: IAsyncDisposable
         {
             // We're only escaping the loop when the connection is closed or
             // the server cancels
-            if (Interlocked.Exchange(ref _isClosed, 1) == 0)
-            {
-                await _server.CleanConnectionState(this);
-            }
+            await _server.CleanConnectionState(this);
         }
     }
-
-    [LoggerMessage(LogLevel.Debug, Message = "{ConnectionId}: expecting {length} bytes")]
-    private partial void DebugExpectedBytesInPacket(int connectionId, int length);
-
-    [LoggerMessage(LogLevel.Debug, Message = "{ConnectionId}: decoded a {PacketImpl} packet")]
-    private partial void DebugDecodedIMindustryPacket(int connectionId, string packetImpl);
     
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _isClosed, 1) == 1)
+        {
+            return;
+        }
+        
         await _cts.CancelAsync();
 
         try

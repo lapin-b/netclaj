@@ -135,6 +135,42 @@ public class MindustryServer
             catch (SocketException) when (ct.IsCancellationRequested) {
                 break;
             }
+
+            var fromConnection = Connections
+                .Values
+                .FirstOrDefault(c => c.UdpEndpoint != null && c.UdpEndpoint.Equals(message.RemoteEndPoint));
+
+            IMindustryPacket packet;
+            try
+            {
+                packet = Serializer.Deserialize(message.Buffer.AsMemory(2));
+            }
+            // We don't care about a malformed packet, we just keep on going
+            catch (Exception e)
+            {
+                if (e is ArgumentOutOfRangeException or EndOfStreamException)
+                {
+                    continue;
+                }
+                
+                _logger.LogWarning(e, "Exception while processing UDP packet");
+                continue;
+            }
+            
+            // Handle some "framework" protocol messages here instead of having every connection handle them
+            if (packet is RegisterUdpPacket registerUdpPacket)
+            {
+                var connection = Connections.Values.FirstOrDefault(c => c.Id == registerUdpPacket.ConnectionId);
+                if (connection is null || connection.UdpEndpoint != null) continue;
+                connection.UdpEndpoint = message.RemoteEndPoint;
+                await connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
+                continue;
+            }
+
+            if (fromConnection != null)
+            {
+                await HandleMindustryPacket(fromConnection, packet);
+            }
         }
         
         _udpListener.Close();
