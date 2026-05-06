@@ -1,4 +1,6 @@
-﻿using System.Buffers.Binary;
+﻿using System.Buffers;
+using System.Buffers.Binary;
+using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
@@ -6,16 +8,17 @@ using NetClajServer.Packets;
 
 namespace NetClajServer.Mindustry;
 
-public partial class Connection: IAsyncDisposable
+public class Connection: IAsyncDisposable
 {
     public int Id { get; init; }
 
-    // Connections
+    private readonly MindustryServer _server;
+    private readonly ILogger _logger;
+    
+    // Connection related properties
     private readonly TcpClient _tcp;
     private UdpClient _udp;
     public IPEndPoint? UdpEndpoint { get; set; }
-    private readonly MindustryServer _server;
-    private readonly ILogger _logger;
 
     // Connection state management and shutdown tasks
     private readonly CancellationTokenSource _cts = new();
@@ -55,20 +58,27 @@ public partial class Connection: IAsyncDisposable
 
     private async Task ReceiveLoop(CancellationToken token)
     {
-        var networkStream = _tcp.GetStream();
-
+        var reader = PipeReader.Create(_tcp.GetStream());
+        
         try
         {
             while (!token.IsCancellationRequested)
             {
-                var packetHeader = new byte[sizeof(ushort)];
-                await ReadExactWithPauseAsync(networkStream, packetHeader, token);
-                var nextPacketLength = BinaryPrimitives.ReadUInt16BigEndian(packetHeader);
-                var packetContent = new byte[nextPacketLength];
-                await ReadExactWithPauseAsync(networkStream, packetContent, token);
+                var pipeRead = await reader.ReadAsync(token);
+                var buffer = pipeRead.Buffer;
 
-                var mindustryPacket = Serializer.Deserialize(new ReadOnlyMemory<byte>(packetContent));
-                await _server.HandleMindustryPacket(this, mindustryPacket);
+                while (TryReadFrame(ref buffer, out var payload))
+                {
+                    var mindustryPacket = Serializer.Deserialize(payload.ToArray());
+                    await _server.HandleMindustryPacket(this, mindustryPacket);
+                }
+                
+                reader.AdvanceTo(buffer.Start, buffer.End);
+
+                if (pipeRead.IsCompleted)
+                {
+                    break; // connection end
+                }
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -103,21 +113,38 @@ public partial class Connection: IAsyncDisposable
         }
     }
 
-    private async Task ReadExactWithPauseAsync(Stream stream, Memory<byte> buffer, CancellationToken ct)
+    private bool TryReadFrame(
+        ref ReadOnlySequence<byte> buffer,
+        out ReadOnlySequence<byte> payload
+    )
     {
-        var total = 0;
-        while (total < buffer.Length)
-        {
-            var bytesRead = await stream.ReadAsync(buffer[total..], ct);
-            if (bytesRead == 0)
-            {
-                throw new EndOfStreamException("Remote closed the connection");
-            }
+        payload = default;
 
-            total += bytesRead;
+        // Buffer must contain the next packet length as a ushort.
+        // One valid frame is 2 bytes of payload length + n bytes of payload
+        if (buffer.Length < 2)
+        {
+            return false;
         }
+
+        // Read the length of the next Mindustry packet
+        Span<byte> packetLengthBytes = stackalloc byte[2];
+        buffer.Slice(0, 2).CopyTo(packetLengthBytes);
+        ushort packetLength = BinaryPrimitives.ReadUInt16BigEndian(packetLengthBytes);
+        
+        long frameSize = 2 + packetLength;
+        if (buffer.Length < frameSize)
+        {
+            return false;
+        }
+
+        // Consume the frame as a payload and keep the rest in the buffer
+        payload = buffer.Slice(2, packetLength);
+        buffer = buffer.Slice(frameSize);
+
+        return true;
     }
-    
+
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isClosed, 1) == 1)
