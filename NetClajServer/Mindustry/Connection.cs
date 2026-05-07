@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Packets;
+using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Mindustry;
 
@@ -46,6 +47,10 @@ public class Connection: IAsyncDisposable
     public async Task SendTcp(IMindustryPacket packet)
     {
         var sendBytes = Serializer.Serialize(packet);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("{ConnectionID} Sending {bytes}", Id, sendBytes);
+        }
         await _tcp.GetStream().WriteAsync(sendBytes);
         await _tcp.GetStream().FlushAsync();
     }
@@ -69,7 +74,18 @@ public class Connection: IAsyncDisposable
 
                 while (TryReadFrame(ref buffer, out var payload))
                 {
+                    if (_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        _logger.LogDebug("Received bytes {bytes}", payload.ToArray());
+                    }
+
                     var mindustryPacket = Serializer.Deserialize(payload.ToArray());
+
+                    if (_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        _logger.LogDebug("Got packet type {packetType}", mindustryPacket.GetType().FullName);
+                    }
+                    
                     await _server.HandleMindustryPacket(this, mindustryPacket);
                 }
                 
@@ -83,7 +99,7 @@ public class Connection: IAsyncDisposable
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            _logger.LogWarning("{ConnectionID} Operation canceled", Id);
+            _logger.LogWarning("{ConnectionID} Server triggered closing the connection", Id);
         }
         catch (IOException) when (token.IsCancellationRequested || !_tcp.Connected)
         {
@@ -109,8 +125,13 @@ public class Connection: IAsyncDisposable
         {
             // We're only escaping the loop when the connection is closed or
             // the server cancels
-            await _server.CleanConnectionState(this);
+            await _server.HandleConnectionClosure(this);
         }
+    }
+
+    public Task Close(ConnectionCloseReason? reason = null)
+    {
+        return _cts.CancelAsync();
     }
 
     private bool TryReadFrame(
@@ -165,6 +186,7 @@ public class Connection: IAsyncDisposable
         }
         finally
         {
+            _tcp.Close();
             _tcp.Dispose();
             _cts.Dispose();
             // The UDP client isn't disposed of because it's the server's copy

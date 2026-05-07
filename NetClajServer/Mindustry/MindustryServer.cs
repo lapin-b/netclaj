@@ -2,6 +2,9 @@
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
+using NetClajServer.Claj;
+using NetClajServer.Claj.Handlers;
+using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Datastructures;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Framework;
@@ -12,7 +15,11 @@ public class MindustryServer
 {
     private readonly ILogger<MindustryServer> _logger;
     private readonly ILoggerProvider _loggerProvider;
+    
+    // Packet routing
+    private readonly Dictionary<Type, Func<PacketContext, IMindustryPacket, Task>> _router = new();
 
+    // Connection accepting
     private readonly TcpListener _tcpListener;
     private readonly UdpClient _udpListener;
     private Task? _tcpServerTask;
@@ -23,7 +30,9 @@ public class MindustryServer
     // a null value.
     private CancellationTokenSource? _cts;
 
-    private ConcurrentDictionary<long, Connection> Connections = new();
+    // Active connections and rooms management
+    public ConcurrentDictionary<long, Connection> Connections { get; } = new();
+    public ConcurrentDictionary<long, Room> Rooms { get; } = new();
  
     public MindustryServer(ClajServerConfiguration config, ILogger<MindustryServer> logger, ILoggerProvider loggerProvider)
     {
@@ -32,6 +41,9 @@ public class MindustryServer
 
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
+        
+        RegisterPacketHandler(new CreateClajRoomRequestHandler());
+        RegisterPacketHandler(new CloseClajRoomRequestHandler());
     }
 
     public void Start()
@@ -72,12 +84,29 @@ public class MindustryServer
         cts.Dispose();
     }
 
-    public async Task HandleMindustryPacket(Connection connection, IMindustryPacket packet)
+    public Task HandleMindustryPacket(Connection connection, IMindustryPacket packet)
     {
+        if (_cts is null) throw new InvalidOperationException("Server is not started");
+
+        var context = new PacketContext
+        {
+            Server = this,
+            Connection = connection,
+            Logger = _loggerProvider.CreateLogger(packet.GetType().FullName!),
+            CancellationToken = _cts.Token
+        };
         
+        if (_router.TryGetValue(packet.GetType(), out var handler))
+        {
+            return handler(context, packet);
+        }
+        
+        _logger.LogDebug("No handler for {packetType}", packet.GetType().Name);
+        
+        return Task.CompletedTask;
     }
 
-    public Task CleanConnectionState(Connection connection)
+    public Task HandleConnectionClosure(Connection connection)
     {
         _logger.LogInformation("Connection {ConnectionId} closed", connection.Id);
         Connections.TryRemove(connection.Id, out _);
@@ -177,6 +206,12 @@ public class MindustryServer
         _udpListener.Close();
     }
 
+    private void RegisterPacketHandler<TPacket>(IPacketHandler<TPacket> handler)
+        where TPacket : IMindustryPacket
+    {
+        _router[typeof(TPacket)] = (context, packet) => handler.HandleAsync(context, (TPacket)packet);
+    }
+    
     private int GenerateConnectionId()
     {
         int connectionId;
