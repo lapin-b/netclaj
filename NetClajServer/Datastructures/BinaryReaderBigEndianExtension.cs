@@ -9,6 +9,11 @@ public static class BinaryReaderBigEndianExtension
     {
         return BinaryPrimitives.ReadInt16BigEndian(br.ReadSpan(stackalloc byte[sizeof(short)]));
     }
+    
+    public static ushort ReadUInt16BigEndian(this BinaryReader br)
+    {
+        return BinaryPrimitives.ReadUInt16BigEndian(br.ReadSpan(stackalloc byte[sizeof(ushort)]));
+    }
 
     public static int ReadInt32BigEndian(this BinaryReader br)
     {
