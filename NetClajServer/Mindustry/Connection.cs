@@ -9,13 +9,13 @@ using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Mindustry;
 
-public class Connection: IAsyncDisposable
+public class Connection
 {
     public int Id { get; init; }
 
-    private readonly MindustryServer _server;
+    private MindustryServer _server;
     private readonly ILogger _logger;
-    
+
     // Connection related properties
     private readonly TcpClient _tcp;
     private UdpClient _udp;
@@ -25,10 +25,10 @@ public class Connection: IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private int _isClosed;
     private Task? _receiveLoopTask;
-    
+
     public Connection(TcpClient tcp,
         UdpClient udp,
-        MindustryServer server, 
+        MindustryServer server,
         ILogger logger)
     {
         _tcp = tcp;
@@ -43,7 +43,7 @@ public class Connection: IAsyncDisposable
         var linked = CancellationTokenSource.CreateLinkedTokenSource(serverToken, _cts.Token);
         _receiveLoopTask = ReceiveLoop(linked.Token);
     }
-    
+
     public async Task SendTcp(IMindustryPacket packet)
     {
         var sendBytes = Serializer.Serialize(packet);
@@ -51,6 +51,7 @@ public class Connection: IAsyncDisposable
         {
             _logger.LogDebug("{ConnectionID} Sending {bytes}", Id, sendBytes);
         }
+
         await _tcp.GetStream().WriteAsync(sendBytes);
         await _tcp.GetStream().FlushAsync();
     }
@@ -64,7 +65,7 @@ public class Connection: IAsyncDisposable
     private async Task ReceiveLoop(CancellationToken token)
     {
         var reader = PipeReader.Create(_tcp.GetStream());
-        
+
         try
         {
             while (!token.IsCancellationRequested)
@@ -85,10 +86,10 @@ public class Connection: IAsyncDisposable
                     {
                         _logger.LogDebug("Got packet type {packetType}", mindustryPacket.GetType().FullName);
                     }
-                    
+
                     await _server.HandleMindustryPacket(this, mindustryPacket);
                 }
-                
+
                 reader.AdvanceTo(buffer.Start, buffer.End);
 
                 if (pipeRead.IsCompleted)
@@ -96,10 +97,6 @@ public class Connection: IAsyncDisposable
                     break; // connection end
                 }
             }
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            _logger.LogWarning("{ConnectionID} Server triggered closing the connection", Id);
         }
         catch (IOException) when (token.IsCancellationRequested || !_tcp.Connected)
         {
@@ -111,27 +108,36 @@ public class Connection: IAsyncDisposable
             // Whatever happens if the socket blows up in the process of shutting down this connection
             _logger.LogWarning(e, "{ConnectionID} Something blew up in the process of shutting down", Id);
         }
-        catch (EndOfStreamException) when (!_tcp.Connected)
-        {
-            // The remote connection closed
-            _logger.LogWarning("{ConnectionID} Remote closed the connection (EndOfStreamException)", Id);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "{ConnectionId} Error while processing the connection loop", Id);
-            throw;
-        }
         finally
         {
             // We're only escaping the loop when the connection is closed or
             // the server cancels
-            await _server.HandleConnectionClosure(this);
+            InternalClosing(ConnectionCloseReason.Error);
         }
     }
 
-    public Task Close(ConnectionCloseReason? reason = null)
+    public void Close(ConnectionCloseReason? reason = null)
     {
-        return _cts.CancelAsync();
+        _cts.Cancel();
+        InternalClosing(reason);
+    }
+
+    private void InternalClosing(ConnectionCloseReason? reason)
+    {
+        if (Interlocked.Exchange(ref _isClosed, 1) == 1)
+        {
+            return;
+        }
+
+        _logger.LogInformation("{ConnectionID} Closing connection", Id);
+        
+        _cts.Cancel();
+        _server.NotifyConnectionClosure(this, reason);
+        UdpEndpoint = null;
+        
+        _tcp.Close();
+        _tcp.Dispose();
+        _cts.Dispose();
     }
 
     private bool TryReadFrame(
@@ -152,7 +158,7 @@ public class Connection: IAsyncDisposable
         Span<byte> packetLengthBytes = stackalloc byte[2];
         buffer.Slice(0, 2).CopyTo(packetLengthBytes);
         ushort packetLength = BinaryPrimitives.ReadUInt16BigEndian(packetLengthBytes);
-        
+
         long frameSize = 2 + packetLength;
         if (buffer.Length < frameSize)
         {
@@ -166,30 +172,4 @@ public class Connection: IAsyncDisposable
         return true;
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isClosed, 1) == 1)
-        {
-            return;
-        }
-        
-        await _cts.CancelAsync();
-
-        try
-        {
-            if (_receiveLoopTask is not null)
-                await _receiveLoopTask;
-        }
-        catch (OperationCanceledException)
-        {
-            // no-op
-        }
-        finally
-        {
-            _tcp.Close();
-            _tcp.Dispose();
-            _cts.Dispose();
-            // The UDP client isn't disposed of because it's the server's copy
-        }
-    }
 }

@@ -77,7 +77,7 @@ public class MindustryServer
 
         foreach (var connection in Connections.Values)
         {
-            await connection.DisposeAsync();
+            connection.Close();
         }
         
         Connections.Clear();
@@ -106,11 +106,10 @@ public class MindustryServer
         return Task.CompletedTask;
     }
 
-    public Task HandleConnectionClosure(Connection connection)
+    public void NotifyConnectionClosure(Connection connection, ConnectionCloseReason? reason)
     {
-        _logger.LogInformation("Connection {ConnectionId} closed", connection.Id);
+        _logger.LogInformation("Connection {ConnectionId} closed. Reason={Reason}", connection.Id, reason);
         Connections.TryRemove(connection.Id, out _);
-        return connection.DisposeAsync().AsTask();
     }
 
     private async Task TcpAcceptLoop(CancellationToken ct)
