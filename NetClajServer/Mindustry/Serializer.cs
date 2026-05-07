@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using NetClajServer.Datastructures;
 using NetClajServer.Packets;
+using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Mindustry;
@@ -56,15 +57,35 @@ public static class Serializer
         var binaryReader = new BinaryReader(stream);
         var packetType = binaryReader.ReadSByte();
 
-        IMindustryPacket? packet = null;
-        
-        switch (packetType)
+        return packetType switch
         {
-            case PacketType.Framework:
-                return DecodeFrameworkPacket(binaryReader);
-        }
+            PacketType.Framework => DecodeFrameworkPacket(binaryReader),
+            PacketType.OldClajVersion => throw new NotImplementedException(),
+            PacketType.Claj => DecodeClajPacket(binaryReader),
+            _ => throw new ArgumentOutOfRangeException(nameof(packetType))
+        };
+    }
 
-        throw new NotImplementedException();
+    private static IMindustryPacket DecodeClajPacket(BinaryReader reader)
+    {
+        var packetType = reader.ReadByte();
+
+        IMindustryPacket deserializedPacket = packetType switch
+        {
+            ClajPayloadWrapping.Identifier => new ClajPayloadWrapping(),
+            ConnectionClosedPacket.Identifier => new ConnectionClosedPacket(),
+            ConnectionJoinPacket.Identifier => new ConnectionJoinPacket(),
+            ConnectionIdlingPacket.Identifier => new ConnectionIdlingPacket(),
+            RoomCreateRequestPacket.Identifier => new RoomCreateRequestPacket(),
+            RoomCloseRequestPacket.Identifier => new RoomCloseRequestPacket(),
+            RoomLinkPacket.Identifier => new RoomLinkPacket(),
+            RoomJoinPacket.Identifier => new RoomJoinPacket(),
+            ClajMessagePacket.Identifier => new ClajMessagePacket(),
+            _ => throw new ArgumentOutOfRangeException(nameof(packetType))
+        };
+        
+        deserializedPacket.Deserialize(reader);
+        return deserializedPacket;
     }
 
     private static IMindustryPacket DecodeFrameworkPacket(BinaryReader reader)
