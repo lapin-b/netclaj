@@ -95,8 +95,11 @@ public static class Serializer
 
         IMindustryPacket deserializedPacket = packetType switch
         {
-            RegisterTcpPacket.Identifier => new RegisterTcpPacket(),
+            PingPacket.Identifier => new PingPacket(),
+            DiscoverHostPacket.Identifier => new DiscoverHostPacket(),
+            KeepAlivePacket.Identifier => new KeepAlivePacket(),
             RegisterUdpPacket.Identifier => new RegisterUdpPacket(),
+            RegisterTcpPacket.Identifier => new RegisterTcpPacket(),
             _ => throw new ArgumentOutOfRangeException(nameof(packetType))
         };
 

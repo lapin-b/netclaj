@@ -4,7 +4,7 @@ namespace NetClajServer.Packets.Claj;
 
 public class RoomLinkPacket: IMindustryPacket
 {
-    public int RoomId { get; set; }
+    public long RoomId { get; set; }
     
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 6;
@@ -14,11 +14,11 @@ public class RoomLinkPacket: IMindustryPacket
     
     public void Deserialize(BinaryReader reader)
     {
-        RoomId = reader.ReadInt32BigEndian();
+        RoomId = reader.ReadInt64BigEndian();
     }
 
     public void Serialize(BinaryWriter writer)
     {
-        writer.WriteInt32BigEndian(RoomId);
+        writer.WriteInt64BigEndian(RoomId);
     }
 }

@@ -24,4 +24,11 @@ public static class BinaryWriterBigEndianExtension
         BinaryPrimitives.WriteInt32BigEndian(buffer, val);
         bw.Write(buffer);
     }
+    
+    public static void WriteInt64BigEndian(this BinaryWriter bw, long val)
+    {
+        Span<byte> buffer = stackalloc byte[sizeof(long)];
+        BinaryPrimitives.WriteInt64BigEndian(buffer, val);
+        bw.Write(buffer);
+    }
 }

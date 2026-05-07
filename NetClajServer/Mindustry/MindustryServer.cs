@@ -84,9 +84,29 @@ public class MindustryServer
         cts.Dispose();
     }
 
-    public Task HandleMindustryPacket(Connection connection, IMindustryPacket packet)
+    // TODO: handle if the packet is UDP
+    public async Task HandleMindustryPacket(Connection connection, IMindustryPacket packet)
     {
         if (_cts is null) throw new InvalidOperationException("Server is not started");
+
+        // Handle framework packets directly in the server since they're unrelated to claj
+        switch (packet)
+        {
+            case PingPacket ping:
+                await connection.SendTcp(new PingPacket()
+                {
+                    Id = ping.Id,
+                    IsReply = true
+                });
+
+                return;
+            case DiscoverHostPacket:
+                await connection.SendTcp(new DiscoverHostPacket());
+                return;
+            case KeepAlivePacket:
+                await connection.SendTcp(new KeepAlivePacket());
+                return;
+        }
 
         var context = new PacketContext
         {
@@ -98,12 +118,11 @@ public class MindustryServer
         
         if (_router.TryGetValue(packet.GetType(), out var handler))
         {
-            return handler(context, packet);
+            await handler(context, packet);
+            return;
         }
         
         _logger.LogDebug("No handler for {packetType}", packet.GetType().Name);
-        
-        return Task.CompletedTask;
     }
 
     public void NotifyConnectionClosure(Connection connection, ConnectionCloseReason? reason)

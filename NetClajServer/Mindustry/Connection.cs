@@ -108,6 +108,10 @@ public class Connection
             // Whatever happens if the socket blows up in the process of shutting down this connection
             _logger.LogWarning(e, "{ConnectionID} Something blew up in the process of shutting down", Id);
         }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "{ConnectionId} something blew up");
+        }
         finally
         {
             // We're only escaping the loop when the connection is closed or
