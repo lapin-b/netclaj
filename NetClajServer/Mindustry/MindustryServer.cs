@@ -84,8 +84,7 @@ public class MindustryServer
         cts.Dispose();
     }
 
-    // TODO: handle if the packet is UDP
-    public async Task HandleMindustryPacket(Connection connection, IMindustryPacket packet)
+    public async Task HandleMindustryPacket(Connection connection, IMindustryPacket packet, bool isTcp)
     {
         if (_cts is null) throw new InvalidOperationException("Server is not started");
 
@@ -93,18 +92,18 @@ public class MindustryServer
         switch (packet)
         {
             case PingPacket ping:
-                await connection.SendTcp(new PingPacket()
+                await connection.Send(new PingPacket()
                 {
                     Id = ping.Id,
                     IsReply = true
-                });
+                }, isTcp);
 
                 return;
             case DiscoverHostPacket:
-                await connection.SendTcp(new DiscoverHostPacket());
+                await connection.Send(new DiscoverHostPacket(), isTcp);
                 return;
             case KeepAlivePacket:
-                await connection.SendTcp(new KeepAlivePacket());
+                await connection.Send(new KeepAlivePacket(), isTcp);
                 return;
         }
 
@@ -171,7 +170,6 @@ public class MindustryServer
             UdpReceiveResult message;
             try
             {
-                _logger.LogDebug("Waiting for an UDP message");
                 message = await _udpListener.ReceiveAsync(ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) {
@@ -183,10 +181,6 @@ public class MindustryServer
             catch (SocketException) when (ct.IsCancellationRequested) {
                 break;
             }
-
-            var fromConnection = Connections
-                .Values
-                .FirstOrDefault(c => c.UdpEndpoint != null && c.UdpEndpoint.Equals(message.RemoteEndPoint));
 
             IMindustryPacket packet;
             try
@@ -205,7 +199,8 @@ public class MindustryServer
                 continue;
             }
             
-            // Handle some "framework" protocol messages here instead of having every connection handle them
+            // Handle the register UDP packet here instead of looping through every connection and have them
+            // handle it.
             if (packet is RegisterUdpPacket registerUdpPacket)
             {
                 var connection = Connections.Values.FirstOrDefault(c => c.Id == registerUdpPacket.ConnectionId);
@@ -214,10 +209,14 @@ public class MindustryServer
                 await connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
                 continue;
             }
+            
+            var fromConnection = Connections
+                .Values
+                .FirstOrDefault(c => c.UdpEndpoint != null && c.UdpEndpoint.Equals(message.RemoteEndPoint));
 
             if (fromConnection != null)
             {
-                await HandleMindustryPacket(fromConnection, packet);
+                await HandleMindustryPacket(fromConnection, packet, false);
             }
         }
         

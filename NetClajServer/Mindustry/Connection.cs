@@ -44,22 +44,29 @@ public class Connection
         _receiveLoopTask = ReceiveLoop(linked.Token);
     }
 
+    public Task Send(IMindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
+
     public async Task SendTcp(IMindustryPacket packet)
     {
         var sendBytes = Serializer.Serialize(packet);
         if (_logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("{ConnectionID} Sending {bytes}", Id, sendBytes);
+            _logger.LogDebug("TCP: {ConnectionID} Sending {bytes}", Id, sendBytes);
         }
 
-        await _tcp.GetStream().WriteAsync(sendBytes);
+        await _tcp.GetStream().WriteAsync(sendBytes, _cts.Token);
         await _tcp.GetStream().FlushAsync();
     }
 
-    public async Task SendTcp(Memory<byte> buffer)
+    public async Task SendUdp(IMindustryPacket packet)
     {
-        await _tcp.GetStream().WriteAsync(buffer);
-        await _tcp.GetStream().FlushAsync();
+        var sendBytes = Serializer.Serialize(packet);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("UDP: {ConnectionID} Sending {bytes}", Id, sendBytes);
+        }
+
+        await _udp.SendAsync(sendBytes, UdpEndpoint, _cts.Token);
     }
 
     private async Task ReceiveLoop(CancellationToken token)
@@ -87,7 +94,7 @@ public class Connection
                         _logger.LogDebug("Got packet type {packetType}", mindustryPacket.GetType().FullName);
                     }
 
-                    await _server.HandleMindustryPacket(this, mindustryPacket);
+                    await _server.HandleMindustryPacket(this, mindustryPacket, true);
                 }
 
                 reader.AdvanceTo(buffer.Start, buffer.End);
