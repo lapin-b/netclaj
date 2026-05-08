@@ -44,6 +44,8 @@ public class MindustryServer
         RegisterPacketHandler(new CreateClajRoomRequestHandler());
         RegisterPacketHandler(new CloseClajRoomRequestHandler());
         RegisterPacketHandler(new JoinClajRoomHandler());
+        
+        RegisterPacketHandler(new RawPacketHandler());
 
         // Framework packets can be handled in their own grouped handler
         // since their respective handler is very short.

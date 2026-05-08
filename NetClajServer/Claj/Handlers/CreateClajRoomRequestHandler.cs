@@ -34,7 +34,8 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
         } while (!context.Server.Rooms.TryAdd(room.Id, room));
 
         context.Logger.LogInformation("Created room {roomId} ({roomIdStr}) for host {connectionId}", room.Id, room.IdString, context.Connection.Id);
-
+        context.Connection.ParticipatesInRoomId = room.Id;
+        
         await context.Connection.SendTcp(new RoomLinkPacket()
         {
             RoomId = room.Id

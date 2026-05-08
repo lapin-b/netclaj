@@ -20,9 +20,12 @@ public static class Serializer
         }
         
         // Write the packet header: wrapper packet type, inner packet type
-        binaryWriter.Write(packet.GetPacketType());
-        binaryWriter.Write(packet.GetPacketIdentifier());
-        
+        if (packet is not RawPacket)
+        {
+            binaryWriter.Write(packet.GetPacketType());
+            binaryWriter.Write(packet.GetPacketIdentifier());
+        }
+
         packet.Serialize(binaryWriter);
 
         if (isTcp)
@@ -57,13 +60,19 @@ public static class Serializer
         var binaryReader = new BinaryReader(stream);
         var packetType = binaryReader.ReadSByte();
 
-        return packetType switch
+        switch (packetType)
         {
-            PacketType.Framework => DecodeFrameworkPacket(binaryReader),
-            PacketType.OldClajVersion => throw new NotImplementedException(),
-            PacketType.Claj => DecodeClajPacket(binaryReader),
-            _ => throw new ArgumentOutOfRangeException(nameof(packetType))
-        };
+            case PacketType.Framework:
+                return DecodeFrameworkPacket(binaryReader);
+            case PacketType.OldClajVersion:
+                throw new NotImplementedException();
+            case PacketType.Claj:
+                return DecodeClajPacket(binaryReader);
+            default:
+                var packet = new RawPacket();
+                packet.Deserialize(binaryReader);
+                return packet;
+        }
     }
 
     private static IMindustryPacket DecodeClajPacket(BinaryReader reader)
@@ -81,7 +90,7 @@ public static class Serializer
             RoomLinkPacket.Identifier => new RoomLinkPacket(),
             RoomJoinPacket.Identifier => new RoomJoinPacket(),
             ClajMessagePacket.Identifier => new ClajMessagePacket(),
-            _ => throw new ArgumentOutOfRangeException(nameof(packetType))
+            _ => throw new SerializerException(nameof(packetType), SerializerException.FamilyClaj, packetType)
         };
         
         deserializedPacket.Deserialize(reader);
@@ -100,7 +109,7 @@ public static class Serializer
             KeepAlivePacket.Identifier => new KeepAlivePacket(),
             RegisterUdpPacket.Identifier => new RegisterUdpPacket(),
             RegisterTcpPacket.Identifier => new RegisterTcpPacket(),
-            _ => throw new ArgumentOutOfRangeException(nameof(packetType))
+            _ => throw new SerializerException(nameof(packetType), SerializerException.FamilyFramework, packetType)
         };
 
         deserializedPacket.Deserialize(reader);

@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
+using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Mindustry;
 
@@ -20,11 +21,14 @@ public class Connection
     private readonly TcpClient _tcp;
     private UdpClient _udp;
     public IPEndPoint? UdpEndpoint { get; set; }
+    public long? ParticipatesInRoomId { get; set; } = null;
+    public bool IsConnected => _tcp.Connected;
 
     // Connection state management and shutdown tasks
     private readonly CancellationTokenSource _cts = new();
     private int _isClosed;
     private Task? _receiveLoopTask;
+    public Queue<RawPacket> RawPacketsQueue { get; } = new(16);
 
     public Connection(TcpClient tcp,
         UdpClient udp,
@@ -94,7 +98,19 @@ public class Connection
                         _logger.LogDebug("{ConnectionID} Got packet type {packetType}", Id, mindustryPacket.GetType().Name);
                     }
 
-                    await _server.HandleMindustryPacket(this, mindustryPacket, true);
+                    if (mindustryPacket is RawPacket raw && ParticipatesInRoomId == null && RawPacketsQueue.Count < 64)
+                    {
+                        _logger.LogDebug("{ConnectionId} not yet participating in a room. Enqueueing raw packet", Id);
+                        RawPacketsQueue.Enqueue(raw);
+                    }
+                    else if (RawPacketsQueue.Count >= 64)
+                    {
+                        _logger.LogWarning("{ConnectionId} Raw packets queue length exceeded 64 packets. Dropping.", Id);
+                    }
+                    else
+                    {
+                        await _server.HandleMindustryPacket(this, mindustryPacket, true);
+                    }
                 }
 
                 reader.AdvanceTo(buffer.Start, buffer.End);
@@ -149,6 +165,8 @@ public class Connection
         _cts.Cancel();
         _server.NotifyConnectionClosure(this, reason);
         UdpEndpoint = null;
+        ParticipatesInRoomId = null;
+        RawPacketsQueue.Clear();
         
         _tcp.Close();
         _tcp.Dispose();

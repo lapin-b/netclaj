@@ -26,6 +26,14 @@ public class JoinClajRoomHandler: IPacketHandler<RoomJoinPacket>
             await alreadyJoinedRoom.LeaveRoom(context.Connection, true);
         }
 
+        context.Logger.LogInformation("{ConnectionId} joining room {roomId}", context.Connection.Id, roomToJoin.Id);
+        context.Connection.ParticipatesInRoomId = roomToJoin.Id;
         await roomToJoin.JoinRoom(context.Connection);
+
+        while (context.Connection.RawPacketsQueue.TryDequeue(out var pendingPacket))
+        {
+            context.Logger.LogDebug("Submitting packets from {ConnectionId} into the room");
+            await roomToJoin.HandlePacket(context, pendingPacket);
+        }
     }
 }
