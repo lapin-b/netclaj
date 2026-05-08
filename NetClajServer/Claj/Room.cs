@@ -6,7 +6,7 @@ namespace NetClajServer.Claj;
 
 public class Room
 {
-    public long Id { get; init; }
+    public long Id { get; set; }
     public string IdString {
         get
         {

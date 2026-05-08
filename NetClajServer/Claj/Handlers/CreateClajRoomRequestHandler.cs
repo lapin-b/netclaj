@@ -7,16 +7,14 @@ namespace NetClajServer.Claj.Handlers;
 
 public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPacket>
 {
+    private static readonly Version ServerVersion = new(2, 0, 0);
+    
     public async Task HandleAsync(PacketContext context, RoomCreateRequestPacket packet)
     {
-        var serverVersion = new Version(2, 0, 0);
         var remoteVersion = new Version(packet.Version);
-
-        var versionResult = remoteVersion.CompareTo(serverVersion);
-
-        if (versionResult < 0)
+        if (remoteVersion.CompareTo(ServerVersion) < 0)
         {
-            // Client version is too old, deny link creation
+            // Client version is too old, deny link creation by closing the connection
             await context.Connection.SendTcp(new ClajMessagePacket()
             {
                 Message = "Your CLaJ version is outdated, please update it by reinstalling the 'claj' mod."
@@ -26,14 +24,12 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
             return;
         }
 
-        long roomId;
+        var room = new Room(0, context.Connection);
         do
         {
-            roomId = Random.Shared.NextInt64(long.MinValue, long.MaxValue);
-        } while (context.Server.Rooms.ContainsKey(roomId));
+            room.Id = Random.Shared.NextInt64(long.MinValue, long.MaxValue);
+        } while (!context.Server.Rooms.TryAdd(room.Id, room));
 
-        var room = new Room(roomId, context.Connection);
-        context.Server.Rooms.TryAdd(room.Id, room);
         context.Logger.LogInformation("Created room {roomId} ({roomIdStr}) for host {connectionId}", room.Id, room.IdString, context.Connection.Id);
 
         await context.Connection.SendTcp(new RoomLinkPacket()

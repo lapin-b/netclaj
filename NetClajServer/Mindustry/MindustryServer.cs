@@ -139,19 +139,19 @@ public class MindustryServer
                 throw;
             }
 
-            int connectionId;
+            var connection = new Connection(
+                client, 
+                _udpListener, 
+                this, 
+                _loggerProvider.CreateLogger(nameof(Connection))
+            );
+            
             do
             {
-                connectionId = Random.Shared.Next(int.MinValue, int.MaxValue);
-            } while (Connections.ContainsKey(connectionId));
-            
-            var connection = new Connection(client, _udpListener, this, _loggerProvider.CreateLogger(nameof(Connection)))
-            {
-                Id = connectionId
-            };
+                connection.Id = Random.Shared.Next(int.MinValue, int.MaxValue);
+            } while (!Connections.TryAdd(connection.Id, connection));
 
             connection.Start(ct);
-            Connections.TryAdd(connection.Id, connection);
             _logger.LogInformation("Client ID {ConnectionID} connected", connection.Id);
             await connection.SendTcp(new RegisterTcpPacket { ConnectionId = connection.Id });
         }

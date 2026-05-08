@@ -11,7 +11,7 @@ namespace NetClajServer.Mindustry;
 
 public class Connection
 {
-    public int Id { get; init; }
+    public int Id { get; set; }
 
     private MindustryServer _server;
     private readonly ILogger _logger;
