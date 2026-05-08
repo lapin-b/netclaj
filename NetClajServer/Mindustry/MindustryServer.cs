@@ -31,7 +31,7 @@ public class MindustryServer
     private CancellationTokenSource? _cts;
 
     // Active connections and rooms management
-    public ConcurrentDictionary<long, Connection> Connections { get; } = new();
+    public ConcurrentDictionary<int, Connection> Connections { get; } = new();
     public ConcurrentDictionary<long, Room> Rooms { get; } = new();
  
     public MindustryServer(ClajServerConfiguration config, ILogger<MindustryServer> logger, ILoggerProvider loggerProvider)
@@ -41,9 +41,16 @@ public class MindustryServer
 
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
-        
+
         RegisterPacketHandler(new CreateClajRoomRequestHandler());
         RegisterPacketHandler(new CloseClajRoomRequestHandler());
+
+        // Framework packets can be handled in their own grouped handler
+        // since their respective handler is very short.
+        var frameworkPacketsHandler = new FrameworkPacketsHandler();
+        RegisterPacketHandler<PingPacket>(frameworkPacketsHandler);
+        RegisterPacketHandler<KeepAlivePacket>(frameworkPacketsHandler);
+        RegisterPacketHandler<DiscoverHostPacket>(frameworkPacketsHandler);
     }
 
     public void Start()
@@ -51,7 +58,7 @@ public class MindustryServer
         // Make sure the server is not started twice
         if (_cts is not null) return;
         
-        _logger.LogDebug("Starting server");
+        _logger.LogInformation("Starting server");
         _cts = new CancellationTokenSource();
         _tcpListener.Start();
 
@@ -65,7 +72,7 @@ public class MindustryServer
         if (cts is null) return;
         _cts = null;
         
-        _logger.LogDebug("Stopping server");
+        _logger.LogInformation("Stopping server");
         await cts.CancelAsync();
         _tcpListener.Stop();
         _udpListener.Close();
@@ -88,31 +95,13 @@ public class MindustryServer
     {
         if (_cts is null) throw new InvalidOperationException("Server is not started");
 
-        // Handle framework packets directly in the server since they're unrelated to claj
-        switch (packet)
-        {
-            case PingPacket ping:
-                await connection.Send(new PingPacket()
-                {
-                    Id = ping.Id,
-                    IsReply = true
-                }, isTcp);
-
-                return;
-            case DiscoverHostPacket:
-                await connection.Send(new DiscoverHostPacket(), isTcp);
-                return;
-            case KeepAlivePacket:
-                await connection.Send(new KeepAlivePacket(), isTcp);
-                return;
-        }
-
         var context = new PacketContext
         {
             Server = this,
             Connection = connection,
             Logger = _loggerProvider.CreateLogger(packet.GetType().FullName!),
-            CancellationToken = _cts.Token
+            CancellationToken = _cts.Token,
+            IsTcp = isTcp
         };
         
         if (_router.TryGetValue(packet.GetType(), out var handler))
@@ -134,26 +123,31 @@ public class MindustryServer
     {
         while (!ct.IsCancellationRequested)
         {
-            _logger.LogDebug("Waiting for a new TCP connection");
             TcpClient client;
             try
             {
                 client = await _tcpListener.AcceptTcpClientAsync(ct);
                 client.NoDelay = true;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                break;
+            catch (Exception e)
+            {
+                if (IsServerShutdownRequested(e, ct))
+                {
+                    break;
+                }
+
+                throw;
             }
-            catch (ObjectDisposedException) when (ct.IsCancellationRequested) {
-                break;
-            }
-            catch (SocketException) when (ct.IsCancellationRequested) {
-                break;
-            }
+
+            int connectionId;
+            do
+            {
+                connectionId = Random.Shared.Next(int.MinValue, int.MaxValue);
+            } while (Connections.ContainsKey(connectionId));
             
             var connection = new Connection(client, _udpListener, this, _loggerProvider.CreateLogger(nameof(Connection)))
             {
-                Id = GenerateConnectionId()
+                Id = connectionId
             };
 
             connection.Start(ct);
@@ -172,14 +166,14 @@ public class MindustryServer
             {
                 message = await _udpListener.ReceiveAsync(ct);
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                break;
-            }
-            catch (ObjectDisposedException) when (ct.IsCancellationRequested) {
-                break;
-            }
-            catch (SocketException) when (ct.IsCancellationRequested) {
-                break;
+            catch (Exception e)
+            {
+                if (IsServerShutdownRequested(e, ct))
+                {
+                    break;
+                }
+
+                throw;
             }
 
             IMindustryPacket packet;
@@ -190,7 +184,7 @@ public class MindustryServer
             // We don't care about a malformed packet, we just keep on going
             catch (Exception e)
             {
-                if (e is ArgumentOutOfRangeException or EndOfStreamException)
+                if (e is ArgumentOutOfRangeException)
                 {
                     continue;
                 }
@@ -199,17 +193,24 @@ public class MindustryServer
                 continue;
             }
             
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("Received UDP bytes {buffer}", message.Buffer);
+            }
+            
             // Handle the register UDP packet here instead of looping through every connection and have them
             // handle it.
             if (packet is RegisterUdpPacket registerUdpPacket)
             {
-                var connection = Connections.Values.FirstOrDefault(c => c.Id == registerUdpPacket.ConnectionId);
-                if (connection is null || connection.UdpEndpoint != null) continue;
-                connection.UdpEndpoint = message.RemoteEndPoint;
-                await connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
+                if (FrameworkPacketsHandler.TryRegisterUdpEndpoint(this, message.RemoteEndPoint, registerUdpPacket, out var connection))
+                {
+                    await connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
+                }
+                
                 continue;
             }
             
+            // TODO: Use a dictionary to quickly fetch a connection from the pile of active ones
             var fromConnection = Connections
                 .Values
                 .FirstOrDefault(c => c.UdpEndpoint != null && c.UdpEndpoint.Equals(message.RemoteEndPoint));
@@ -228,15 +229,18 @@ public class MindustryServer
     {
         _router[typeof(TPacket)] = (context, packet) => handler.HandleAsync(context, (TPacket)packet);
     }
-    
-    private int GenerateConnectionId()
-    {
-        int connectionId;
-        do
-        {
-            connectionId = Random.Shared.Next(int.MinValue, int.MaxValue);
-        } while (Connections.ContainsKey(connectionId));
 
-        return connectionId;
+    private static bool IsServerShutdownRequested(Exception e, CancellationToken ct)
+    {
+        if (
+            e is not OperationCanceledException
+            && e is not ObjectDisposedException
+            && e is not SocketException
+        )
+        {
+            return false;
+        }
+
+        return ct.IsCancellationRequested;
     }
 }

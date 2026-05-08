@@ -9,4 +9,5 @@ public class PacketContext
     public required Connection Connection { get; init; }
     public required ILogger Logger { get; init; }
     public required CancellationToken CancellationToken { get; init; }
+    public required bool IsTcp { get; init; }
 }
