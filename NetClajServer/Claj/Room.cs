@@ -62,8 +62,6 @@ public class Room
         return Task.CompletedTask;
     }
 
-    public bool HasPlayer(Connection queryConnection)
-    {
-        return _players.ContainsKey(queryConnection.Id);
-    }
+    public bool HasPlayer(Connection queryConnection) => _players.ContainsKey(queryConnection.Id);
+    public bool HasPlayer(int connectionId) => _players.ContainsKey(connectionId);
 }

@@ -33,8 +33,6 @@ public class MindustryServer
     // Active connections and rooms management
     public ConcurrentDictionary<int, Connection> Connections { get; } = new();
     public ConcurrentDictionary<long, Room> Rooms { get; } = new();
-    public ConcurrentDictionary<int, long> ConnectionIdToRoomParticipation { get; } = new();
- 
     public MindustryServer(ClajServerConfiguration config, ILogger<MindustryServer> logger, ILoggerProvider loggerProvider)
     {
         _logger = logger;
@@ -113,6 +111,11 @@ public class MindustryServer
         }
         
         _logger.LogDebug("No handler for {packetType}", packet.GetType().Name);
+    }
+
+    public Room? FindConnectionInRooms(Connection connection)
+    {
+        return Rooms.Values.FirstOrDefault(r => r.HostConnectionId == connection.Id || r.HasPlayer(connection));
     }
 
     public void NotifyConnectionClosure(Connection connection, ConnectionCloseReason? reason)

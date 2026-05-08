@@ -1,4 +1,4 @@
-﻿using System.Net.Mime;
+﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
@@ -11,19 +11,21 @@ public class JoinClajRoomHandler: IPacketHandler<RoomJoinPacket>
     {
         if (!context.Server.Rooms.TryGetValue(packet.RoomId, out var roomToJoin))
         {
+            context.Logger.LogWarning(
+                "Connection {connectionId} tried to join a non-existing room ID {roomId}",
+                context.Connection.Id,
+                packet.RoomId
+            );
+            
             context.Connection.Close(ConnectionCloseReason.Error);
             return;
         }
 
-        if (
-            context.Server.ConnectionIdToRoomParticipation.TryRemove(context.Connection.Id, out var alreadyJoinedRoomId)
-            && context.Server.Rooms.TryGetValue(alreadyJoinedRoomId, out var alreadyJoinedRoom)
-        )
+        if (context.Server.FindConnectionInRooms(context.Connection) is {} alreadyJoinedRoom)
         {
             await alreadyJoinedRoom.LeaveRoom(context.Connection, true);
         }
 
-        context.Server.ConnectionIdToRoomParticipation.TryAdd(context.Connection.Id, roomToJoin.Id);
         await roomToJoin.JoinRoom(context.Connection);
     }
 }

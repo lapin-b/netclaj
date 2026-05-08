@@ -9,34 +9,24 @@ public class CloseClajRoomRequestHandler: IPacketHandler<RoomCloseRequestPacket>
 {
     public async Task HandleAsync(PacketContext context, RoomCloseRequestPacket packet)
     {
-        if (
-            !context.Server.ConnectionIdToRoomParticipation.TryGetValue(context.Connection.Id, out var roomId)
-        )
+        if (context.Server.FindConnectionInRooms(context.Connection) is not {} room)
         {
             context.Logger.LogWarning("Connection {ConnectionID} is not bound to any room", context.Connection.Id);
             return;
         }
 
-        if (!context.Server.Rooms.TryGetValue(roomId, out var room))
+        if (room.HostConnectionId != context.Connection.Id)
         {
-            context.Logger.LogError("Room ID {roomId} does not exist", roomId);
-            // TODO: clean server bookkeeping map
+            context.Logger.LogWarning(
+                "Connection {ConnectionID} tried to close a room it didn't host ({hostConnectionId} does)", 
+                context.Connection.Id, 
+                room.HostConnectionId
+            );
             return;
         }
 
-        if (room.HostConnectionId != context.Connection.Id)
-        {
-            context.Logger.LogWarning("Connection {ConnectionID} tried to close a room it didn't host ({hostConnectionId} does)", context.Connection.Id, room.HostConnectionId);
-        }
-
         context.Logger.LogInformation("Closing room {roomId} because host closed it", room.Id);
-        await room.CloseRoom();
-
-        foreach (var mapping in context.Server.ConnectionIdToRoomParticipation.Where(kv => kv.Value == room.Id))
-        {
-            context.Server.ConnectionIdToRoomParticipation.TryRemove(mapping);
-        }
-        
         context.Server.Rooms.TryRemove(room.Id, out _);
+        await room.CloseRoom();
     }
 }

@@ -39,7 +39,5 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
         {
             RoomId = room.Id
         });
-
-        context.Server.ConnectionIdToRoomParticipation.TryAdd(context.Connection.Id, room.Id);
     }
 }
