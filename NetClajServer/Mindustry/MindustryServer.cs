@@ -33,6 +33,7 @@ public class MindustryServer
     // Active connections and rooms management
     public ConcurrentDictionary<int, Connection> Connections { get; } = new();
     public ConcurrentDictionary<long, Room> Rooms { get; } = new();
+    public ConcurrentDictionary<int, long> ConnectionIdToRoomParticipation { get; } = new();
  
     public MindustryServer(ClajServerConfiguration config, ILogger<MindustryServer> logger, ILoggerProvider loggerProvider)
     {
@@ -44,6 +45,7 @@ public class MindustryServer
 
         RegisterPacketHandler(new CreateClajRoomRequestHandler());
         RegisterPacketHandler(new CloseClajRoomRequestHandler());
+        RegisterPacketHandler(new JoinClajRoomHandler());
 
         // Framework packets can be handled in their own grouped handler
         // since their respective handler is very short.

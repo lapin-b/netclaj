@@ -1,7 +1,11 @@
-﻿namespace NetClajServer.Packets.Claj;
+﻿using NetClajServer.Datastructures;
+
+namespace NetClajServer.Packets.Claj;
 
 public class RoomJoinPacket: IMindustryPacket
 {
+    public long RoomId { get; set; }
+    
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 7;
 
@@ -10,11 +14,11 @@ public class RoomJoinPacket: IMindustryPacket
     
     public void Deserialize(BinaryReader reader)
     {
-        // no-op
+        RoomId = reader.ReadInt64BigEndian();
     }
 
     public void Serialize(BinaryWriter writer)
     {
-        //no-op
+        writer.WriteInt64BigEndian(RoomId);
     }
 }

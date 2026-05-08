@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Net.Mime;
+using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
@@ -23,6 +24,8 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
             context.Connection.Close(ConnectionCloseReason.Closed);
             return;
         }
+        
+        // TODO: handle if the connection is already in or hosting a room
 
         var room = new Room(0, context.Connection);
         do
@@ -36,5 +39,7 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
         {
             RoomId = room.Id
         });
+
+        context.Server.ConnectionIdToRoomParticipation.TryAdd(context.Connection.Id, room.Id);
     }
 }

@@ -1,6 +1,8 @@
 ﻿using System.Buffers.Binary;
 using System.Buffers.Text;
+using System.Collections.Concurrent;
 using NetClajServer.Mindustry;
+using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj;
 
@@ -19,11 +21,49 @@ public class Room
     public int HostConnectionId => _host.Id;
     
     private readonly Connection _host;
-    private readonly List<int> _players = new();
+    private readonly ConcurrentDictionary<int, Connection> _players = new();
 
     public Room(long roomId, Connection host)
     {
         Id = roomId;
         _host = host;
+    }
+
+    public async Task JoinRoom(Connection player)
+    {
+        _players.TryAdd(player.Id, player);
+        
+        await _host.SendTcp(new ConnectionJoinPacket
+        {
+            ConnectionId = player.Id
+        });
+    }
+
+    public Task LeaveRoom(Connection player, bool keepOpen = false)
+    {
+        _players.TryRemove(player.Id, out _);
+        if (!keepOpen)
+        {
+            player.Close();
+        }
+        
+        return Task.CompletedTask;
+    }
+
+    public Task CloseRoom()
+    {
+        foreach (var player in _players.Values)
+        {
+            player.Close();
+        }
+        
+        _players.Clear();
+
+        return Task.CompletedTask;
+    }
+
+    public bool HasPlayer(Connection queryConnection)
+    {
+        return _players.ContainsKey(queryConnection.Id);
     }
 }
