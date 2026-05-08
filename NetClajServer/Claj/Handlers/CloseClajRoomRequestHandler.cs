@@ -1,5 +1,4 @@
-﻿using System.Net.Mime;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Packets.Claj;
 
@@ -14,7 +13,7 @@ public class CloseClajRoomRequestHandler: IPacketHandler<RoomCloseRequestPacket>
 
         if (room == null)
         {
-            context.Logger.LogInformation("No host found for {roomId}", room.Id);
+            context.Logger.LogInformation("No host found for room");
             return;
         }
 

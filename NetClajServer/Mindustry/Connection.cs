@@ -51,7 +51,7 @@ public class Connection
         var sendBytes = Serializer.Serialize(packet);
         if (_logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("TCP: {ConnectionID} Sending {bytes}", Id, sendBytes);
+            _logger.LogDebug("TCP: {ConnectionID} Sending {bytes}", Id, sendBytes[2..]);
         }
 
         await _tcp.GetStream().WriteAsync(sendBytes, _cts.Token);
@@ -84,14 +84,14 @@ public class Connection
                 {
                     if (_logger.IsEnabled(LogLevel.Debug))
                     {
-                        _logger.LogDebug("Received bytes {bytes}", payload.ToArray());
+                        _logger.LogDebug("{ConnectionID} Received bytes {bytes}", Id, payload.ToArray());
                     }
 
                     var mindustryPacket = Serializer.Deserialize(payload.ToArray());
 
                     if (_logger.IsEnabled(LogLevel.Debug))
                     {
-                        _logger.LogDebug("Got packet type {packetType}", mindustryPacket.GetType().FullName);
+                        _logger.LogDebug("{ConnectionID} Got packet type {packetType}", Id, mindustryPacket.GetType().Name);
                     }
 
                     await _server.HandleMindustryPacket(this, mindustryPacket, true);
@@ -105,7 +105,11 @@ public class Connection
                 }
             }
         }
-        catch (IOException) when (token.IsCancellationRequested || !_tcp.Connected)
+        catch (OperationCanceledException)
+        {
+            // no-op
+        }
+        catch (IOException)
         {
             // Remote side broke the connection
             _logger.LogWarning("{ConnectionID} Remote closed the connection (IOException)", Id);
@@ -117,7 +121,7 @@ public class Connection
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "{ConnectionId} something blew up");
+            _logger.LogError(e, "{ConnectionId} something blew up", Id);
         }
         finally
         {
