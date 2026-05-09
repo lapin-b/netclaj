@@ -5,13 +5,13 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Packets;
-using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Mindustry;
 
-public class Connection
+public partial class Connection
 {
+    private const int BufferSize = 32;
     public int Id { get; set; }
 
     private MindustryServer _server;
@@ -28,7 +28,7 @@ public class Connection
     private readonly CancellationTokenSource _cts = new();
     private int _isClosed;
     private Task? _receiveLoopTask;
-    public Queue<RawPacket> RawPacketsQueue { get; } = new(16);
+    public Queue<GamePacket> RawPacketsQueue { get; } = new(16);
 
     public Connection(TcpClient tcp,
         UdpClient udp,
@@ -52,10 +52,10 @@ public class Connection
 
     public async Task SendTcp(MindustryPacket packet)
     {
-        var sendBytes = Serializer.Serialize(packet);
+        var sendBytes = Serializer.Serialize(packet, true);
         if (_logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("TCP: {ConnectionID} Sending {bytes}", Id, sendBytes[2..]);
+            _logger.LogDebug("TCP: {ConnectionID} Sending {bytes}", Id, sendBytes);
         }
 
         await _tcp.GetStream().WriteAsync(sendBytes, _cts.Token);
@@ -64,7 +64,7 @@ public class Connection
 
     public async Task SendUdp(MindustryPacket packet)
     {
-        var sendBytes = Serializer.Serialize(packet);
+        var sendBytes = Serializer.Serialize(packet, false);
         if (_logger.IsEnabled(LogLevel.Debug))
         {
             _logger.LogDebug("UDP: {ConnectionID} Sending {bytes}", Id, sendBytes);
@@ -86,30 +86,31 @@ public class Connection
 
                 while (TryReadFrame(ref buffer, out var payload))
                 {
-                    if (_logger.IsEnabled(LogLevel.Debug))
-                    {
-                        _logger.LogDebug("{ConnectionID} Received bytes {bytes}", Id, payload.ToArray());
-                    }
-
+                    LogBytesRecv(Id, payload.ToArray());
                     var mindustryPacket = Serializer.Deserialize(payload.ToArray());
+                    mindustryPacket.IsTcp = true;
 
-                    if (_logger.IsEnabled(LogLevel.Debug))
+                    if (mindustryPacket is not KeepAlivePacket)
                     {
-                        _logger.LogDebug("{ConnectionID} Got packet type {packetType}", Id, mindustryPacket.GetType().Name);
+                        LogPacketTypeRecv(Id, mindustryPacket.GetType().Name);
                     }
 
-                    if (mindustryPacket is RawPacket raw && ParticipatesInRoomId == null && RawPacketsQueue.Count < 64)
+                    // A player joins the room as a client and will send a few packets that might arrive before the
+                    // room host is aware of this player. To not lose anything, buffer the game packets until the host
+                    // is aware of the player.
+                    if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null && RawPacketsQueue.Count < BufferSize)
                     {
-                        _logger.LogDebug("{ConnectionId} not yet participating in a room. Enqueueing raw packet", Id);
+                        LogNotYetParticipatingInRoom(Id);
                         RawPacketsQueue.Enqueue(raw);
                     }
-                    else if (RawPacketsQueue.Count >= 64)
+                    // The buffer is here to prevent filling up the server's memory completely
+                    else if (RawPacketsQueue.Count >= BufferSize)
                     {
-                        _logger.LogWarning("{ConnectionId} Raw packets queue length exceeded 64 packets. Dropping.", Id);
+                        _logger.LogWarning("{ConnectionId} Raw packets queue length exceeded {bufferSize} packets. Dropping.", BufferSize, Id);
                     }
                     else
                     {
-                        await _server.HandleMindustryPacket(this, mindustryPacket, true);
+                        await _server.HandleMindustryPacket(this, mindustryPacket);
                     }
                 }
 
@@ -172,7 +173,8 @@ public class Connection
         _tcp.Dispose();
         _cts.Dispose();
     }
-
+    
+    
     private bool TryReadFrame(
         ref ReadOnlySequence<byte> buffer,
         out ReadOnlySequence<byte> payload
@@ -180,25 +182,31 @@ public class Connection
     {
         payload = default;
 
-        // Buffer must contain the next packet length as a ushort.
-        // One valid frame is 2 bytes of payload length + n bytes of payload
+        /*
+         * A valid TCP Mindustry frame contains a 2-bytes preamble indicating how long
+         * is the payload to come (a ushort) + n bytes of payload.
+         *
+         * The buffer must have enough bytes to extract a valid frame
+         */
         if (buffer.Length < 2)
         {
             return false;
         }
 
-        // Read the length of the next Mindustry packet
+        // Read the next packet length; it fits in an ushort
         Span<byte> packetLengthBytes = stackalloc byte[2];
         buffer.Slice(0, 2).CopyTo(packetLengthBytes);
-        ushort packetLength = BinaryPrimitives.ReadUInt16BigEndian(packetLengthBytes);
+        var packetLength = BinaryPrimitives.ReadUInt16BigEndian(packetLengthBytes);
 
         long frameSize = 2 + packetLength;
         if (buffer.Length < frameSize)
         {
+            // Buffered network traffic is not enough for extract a valid frame
             return false;
         }
 
-        // Consume the frame as a payload and keep the rest in the buffer
+        // Extract a frame while cutting-off the length. This allows the packet processing to be agnostic
+        // of the transport of the original packet.
         payload = buffer.Slice(2, packetLength);
         buffer = buffer.Slice(frameSize);
 

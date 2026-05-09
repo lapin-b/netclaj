@@ -5,9 +5,9 @@ using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class RawPacketHandler: IPacketHandler<RawPacket>, IPacketHandler<ClajPayloadWrapping>
+public class RawPacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajPayloadWrapping>
 {
-    public Task HandleAsync(PacketContext context, RawPacket packet)
+    public Task HandleAsync(PacketContext context, GamePacket packet)
     {
         if (context.Connection.ParticipatesInRoomId is not { } participatesInRoomId)
         {

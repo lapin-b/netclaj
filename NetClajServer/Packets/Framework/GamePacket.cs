@@ -1,15 +1,17 @@
-﻿namespace NetClajServer.Packets.Framework;
+﻿using NetClajServer.Datastructures;
 
-public class RawPacket: MindustryPacket
+namespace NetClajServer.Packets.Framework;
+
+public class GamePacket: MindustryPacket
 {
     public byte[] Buffer { get; set; } = [];
 
-    public RawPacket()
+    public GamePacket()
     {
         
     }
 
-    public RawPacket(byte[] buffer)
+    public GamePacket(byte[] buffer)
     {
         Buffer = buffer;
     }
@@ -19,9 +21,7 @@ public class RawPacket: MindustryPacket
 
     public override void Deserialize(BinaryReader reader)
     {
-        var tempStream = new MemoryStream((int)reader.BaseStream.Length);
-        reader.BaseStream.CopyTo(tempStream);
-        Buffer = tempStream.GetBuffer();
+        Buffer = reader.BaseStream.ReadToByteArray();
     }
 
     public override void Serialize(BinaryWriter writer)

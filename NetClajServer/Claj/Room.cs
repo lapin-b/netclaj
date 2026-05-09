@@ -92,9 +92,10 @@ public class Room
 
             if (_players.TryGetValue(clajWrapper.ConnectionId, out var targetConnection) && targetConnection.IsConnected)
             {
+                // The hosts tells us if the packet it sent should be relayed over TCP or UDP
                 context.Logger.LogDebug("{RoomId} H -> P: {HostId} relaying to {targetId}", Id, HostConnectionId, targetConnection.Id);
-                var bufferToSend = new RawPacket(clajWrapper.Buffer);
-                await targetConnection.Send(bufferToSend, clajWrapper.IsTcp);
+                var bufferToSend = new GamePacket(clajWrapper.Buffer);
+                await targetConnection.Send(bufferToSend, clajWrapper.WrappedPacketIsTcp);
             }
             else
             {
@@ -116,7 +117,7 @@ public class Room
         else if (_host.IsConnected && _players.ContainsKey(context.Connection.Id))
         {
             // Players never see a Claj packet, they only manipulate raw packets
-            if (mindustryPacket is not RawPacket raw)
+            if (mindustryPacket is not GamePacket raw)
             {
                 return;
             }
@@ -126,7 +127,7 @@ public class Room
             {
                 ConnectionId = context.Connection.Id,
                 Buffer = raw.Buffer,
-                IsTcp = context.IsTcp
+                WrappedPacketIsTcp = context.IsTcp
             };
 
             await _host.SendTcp(clajWrapped);

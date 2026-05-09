@@ -47,7 +47,7 @@ public class MindustryServer
         RegisterPacketHandler(new JoinClajRoomHandler());
 
         var rawPacketHandler = new RawPacketHandler();
-        RegisterPacketHandler<RawPacket>(rawPacketHandler);
+        RegisterPacketHandler<GamePacket>(rawPacketHandler);
         RegisterPacketHandler<ClajPayloadWrapping>(rawPacketHandler);
 
         // Framework packets can be handled in their own grouped handler
@@ -96,7 +96,7 @@ public class MindustryServer
         cts.Dispose();
     }
 
-    public async Task HandleMindustryPacket(Connection connection, MindustryPacket packet, bool isTcp)
+    public async Task HandleMindustryPacket(Connection connection, MindustryPacket packet)
     {
         if (_cts is null) throw new InvalidOperationException("Server is not started");
 
@@ -106,7 +106,7 @@ public class MindustryServer
             Connection = connection,
             Logger = _loggerProvider.CreateLogger(packet.GetType().FullName!),
             CancellationToken = _cts.Token,
-            IsTcp = isTcp
+            IsTcp = packet.IsTcp
         };
         
         if (_router.TryGetValue(packet.GetType(), out var handler))
@@ -189,7 +189,9 @@ public class MindustryServer
             MindustryPacket packet;
             try
             {
+                // An UDP packet has no length prefix, no need to strip it from the buffer
                 packet = Serializer.Deserialize(message.Buffer);
+                packet.IsTcp = false;
             }
             // We don't care about a malformed packet, we just keep on going
             catch (Exception e)
@@ -220,14 +222,14 @@ public class MindustryServer
                 continue;
             }
             
-            // TODO: Use a dictionary to quickly fetch a connection from the pile of active ones
             var fromConnection = Connections
                 .Values
                 .FirstOrDefault(c => c.UdpEndpoint != null && c.UdpEndpoint.Equals(message.RemoteEndPoint));
 
+            // TODO: Put the packet through the same flow in the connection
             if (fromConnection != null)
             {
-                await HandleMindustryPacket(fromConnection, packet, false);
+                await HandleMindustryPacket(fromConnection, packet);
             }
         }
         
