@@ -9,12 +9,6 @@ public class RawPacket: IMindustryPacket
         
     }
 
-    public RawPacket(MemoryStream buffer)
-    {
-        buffer.Seek(0, SeekOrigin.Begin);
-        Buffer = buffer.GetBuffer();
-    }
-
     public RawPacket(byte[] buffer)
     {
         Buffer = buffer;
@@ -25,7 +19,7 @@ public class RawPacket: IMindustryPacket
 
     public void Deserialize(BinaryReader reader)
     {
-        var tempStream = new MemoryStream();
+        var tempStream = new MemoryStream((int)reader.BaseStream.Length);
         reader.BaseStream.CopyTo(tempStream);
         Buffer = tempStream.GetBuffer();
     }

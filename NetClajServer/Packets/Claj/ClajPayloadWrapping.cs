@@ -12,7 +12,8 @@ public class ClajPayloadWrapping: MindustryPacketWithConId
     {
         IsTcp = reader.ReadBoolean();
 
-        var buffer = new MemoryStream();
+        var buffer = new MemoryStream((int)reader.BaseStream.Length - 1);
+        reader.BaseStream.Seek(1, SeekOrigin.Begin);
         reader.BaseStream.CopyTo(buffer);
         Buffer = buffer.GetBuffer();
     }
