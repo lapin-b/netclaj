@@ -1,19 +1,19 @@
 ﻿namespace NetClajServer.Packets.Claj;
 
-public class RoomCloseRequestPacket: IMindustryPacket
+public class RoomCloseRequestPacket: MindustryPacket
 {
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 5;
 
-    sbyte IMindustryPacket.GetPacketType() => Type;
-    public byte GetPacketIdentifier() => Identifier;
+    public override sbyte GetPacketType() => Type;
+    public override byte GetPacketIdentifier() => Identifier;
     
-    public void Deserialize(BinaryReader reader)
+    public override void Deserialize(BinaryReader reader)
     {
         // no-op
     }
 
-    public void Serialize(BinaryWriter writer)
+    public override void Serialize(BinaryWriter writer)
     {
         // no-op
     }

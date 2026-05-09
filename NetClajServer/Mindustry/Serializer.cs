@@ -8,7 +8,7 @@ namespace NetClajServer.Mindustry;
 
 public static class Serializer
 {
-    public static byte[] Serialize(IMindustryPacket packet, bool isTcp = true)
+    public static byte[] Serialize(MindustryPacket packet, bool isTcp = true)
     {
         var memoryStream = new MemoryStream(1024);
         var binaryWriter = new BinaryWriter(memoryStream);
@@ -39,7 +39,7 @@ public static class Serializer
         return memoryStream.ToArray();
     }
 
-    public static IMindustryPacket Deserialize(ReadOnlyMemory<byte> payload)
+    public static MindustryPacket Deserialize(ReadOnlyMemory<byte> payload)
     {
         Stream stream;
         if (MemoryMarshal.TryGetArray(payload, out var segment) && segment.Array is not null)
@@ -76,11 +76,11 @@ public static class Serializer
         }
     }
 
-    private static IMindustryPacket DecodeClajPacket(BinaryReader reader)
+    private static MindustryPacket DecodeClajPacket(BinaryReader reader)
     {
         var packetType = reader.ReadByte();
 
-        IMindustryPacket deserializedPacket = packetType switch
+        MindustryPacket deserializedPacket = packetType switch
         {
             ClajPayloadWrapping.Identifier => new ClajPayloadWrapping(),
             ConnectionClosedPacket.Identifier => new ConnectionClosedPacket(),
@@ -98,12 +98,12 @@ public static class Serializer
         return deserializedPacket;
     }
 
-    private static IMindustryPacket DecodeFrameworkPacket(BinaryReader reader)
+    private static MindustryPacket DecodeFrameworkPacket(BinaryReader reader)
     {
         
         var packetType = reader.ReadByte();
 
-        IMindustryPacket deserializedPacket = packetType switch
+        MindustryPacket deserializedPacket = packetType switch
         {
             PingPacket.Identifier => new PingPacket(),
             DiscoverHostPacket.Identifier => new DiscoverHostPacket(),

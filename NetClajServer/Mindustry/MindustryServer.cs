@@ -18,7 +18,7 @@ public class MindustryServer
     private readonly ILoggerProvider _loggerProvider;
     
     // Packet routing
-    private readonly Dictionary<Type, Func<PacketContext, IMindustryPacket, Task>> _router = new();
+    private readonly Dictionary<Type, Func<PacketContext, MindustryPacket, Task>> _router = new();
 
     // Connection accepting
     private readonly TcpListener _tcpListener;
@@ -96,7 +96,7 @@ public class MindustryServer
         cts.Dispose();
     }
 
-    public async Task HandleMindustryPacket(Connection connection, IMindustryPacket packet, bool isTcp)
+    public async Task HandleMindustryPacket(Connection connection, MindustryPacket packet, bool isTcp)
     {
         if (_cts is null) throw new InvalidOperationException("Server is not started");
 
@@ -186,7 +186,7 @@ public class MindustryServer
                 throw;
             }
 
-            IMindustryPacket packet;
+            MindustryPacket packet;
             try
             {
                 packet = Serializer.Deserialize(message.Buffer);
@@ -235,7 +235,7 @@ public class MindustryServer
     }
 
     private void RegisterPacketHandler<TPacket>(IPacketHandler<TPacket> handler)
-        where TPacket : IMindustryPacket
+        where TPacket : MindustryPacket
     {
         _router[typeof(TPacket)] = (context, packet) => handler.HandleAsync(context, (TPacket)packet);
     }

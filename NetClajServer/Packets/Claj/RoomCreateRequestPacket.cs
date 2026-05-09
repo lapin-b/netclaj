@@ -2,22 +2,22 @@
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomCreateRequestPacket: IMindustryPacket
+public class RoomCreateRequestPacket: MindustryPacket
 {
     public string Version { get; set; }
     
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 4;
 
-    sbyte IMindustryPacket.GetPacketType() => Type;
-    public byte GetPacketIdentifier() => Identifier;
+    public override sbyte GetPacketType() => Type;
+    public override byte GetPacketIdentifier() => Identifier;
     
-    public void Deserialize(BinaryReader reader)
+    public override void Deserialize(BinaryReader reader)
     {
         Version = reader.ReadJavaUtf();
     }
 
-    public void Serialize(BinaryWriter writer)
+    public override void Serialize(BinaryWriter writer)
     {
         writer.WriteJavaUtf(Version);
     }

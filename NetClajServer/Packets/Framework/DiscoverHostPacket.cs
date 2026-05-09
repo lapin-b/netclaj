@@ -1,18 +1,18 @@
 ﻿namespace NetClajServer.Packets.Framework;
 
-public class DiscoverHostPacket: IMindustryPacket
+public class DiscoverHostPacket: MindustryPacket
 {
     public const sbyte Type = PacketType.Framework;
     public const byte Identifier = 1;
 
-    sbyte IMindustryPacket.GetPacketType() => Type;
-    public byte GetPacketIdentifier() => Identifier;
-    public void Deserialize(BinaryReader reader)
+    public override sbyte GetPacketType() => Type;
+    public override byte GetPacketIdentifier() => Identifier;
+    public override void Deserialize(BinaryReader reader)
     {
         // no-op
     }
 
-    public void Serialize(BinaryWriter writer)
+    public override void Serialize(BinaryWriter writer)
     {
         // no-op
     }

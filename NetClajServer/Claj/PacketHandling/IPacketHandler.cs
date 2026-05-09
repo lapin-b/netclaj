@@ -3,7 +3,7 @@
 namespace NetClajServer.Claj.PacketHandling;
 
 public interface IPacketHandler<TPacket> 
-    where TPacket: IMindustryPacket
+    where TPacket: MindustryPacket
 {
     Task HandleAsync(PacketContext context, TPacket packet);
 }

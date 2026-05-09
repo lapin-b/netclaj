@@ -77,7 +77,7 @@ public class Room
     public bool HasPlayer(Connection queryConnection) => _players.ContainsKey(queryConnection.Id);
     public bool HasPlayer(int connectionId) => _players.ContainsKey(connectionId);
 
-    public async Task HandlePacket(PacketContext context, IMindustryPacket mindustryPacket)
+    public async Task HandlePacket(PacketContext context, MindustryPacket mindustryPacket)
     {
         if (_closed) return;
 

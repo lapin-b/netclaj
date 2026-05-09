@@ -2,22 +2,22 @@
 
 namespace NetClajServer.Packets.Claj;
 
-public abstract class MindustryPacketWithConId: IMindustryPacket
+public abstract class MindustryPacketWithConId: MindustryPacket
 {
     public int ConnectionId { get; set; }
     
     public const sbyte Type = PacketType.Claj;
 
-    sbyte IMindustryPacket.GetPacketType() => Type;
-    public abstract byte GetPacketIdentifier();
+    public override sbyte GetPacketType() => Type;
+    public abstract override byte GetPacketIdentifier();
 
-    public void Deserialize(BinaryReader reader)
+    public override void Deserialize(BinaryReader reader)
     {
         ConnectionId = reader.ReadInt32BigEndian();
         DeserializeInnerPayload(reader);
     }
 
-    public void Serialize(BinaryWriter writer)
+    public override void Serialize(BinaryWriter writer)
     {
         writer.WriteInt32BigEndian(ConnectionId);
         SerializeInnerPayload(writer);

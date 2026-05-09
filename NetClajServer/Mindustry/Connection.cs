@@ -48,9 +48,9 @@ public class Connection
         _receiveLoopTask = ReceiveLoop(linked.Token);
     }
 
-    public Task Send(IMindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
+    public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
 
-    public async Task SendTcp(IMindustryPacket packet)
+    public async Task SendTcp(MindustryPacket packet)
     {
         var sendBytes = Serializer.Serialize(packet);
         if (_logger.IsEnabled(LogLevel.Debug))
@@ -62,7 +62,7 @@ public class Connection
         await _tcp.GetStream().FlushAsync();
     }
 
-    public async Task SendUdp(IMindustryPacket packet)
+    public async Task SendUdp(MindustryPacket packet)
     {
         var sendBytes = Serializer.Serialize(packet);
         if (_logger.IsEnabled(LogLevel.Debug))
