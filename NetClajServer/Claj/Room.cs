@@ -46,32 +46,28 @@ public class Room
         });
     }
 
-    public Task LeaveRoom(Connection player, bool keepOpen = false)
+    public async Task LeaveRoom(Connection player, bool keepOpen = false)
     {
-        if (_closed) return Task.CompletedTask;
+        if (_closed) return;
 
         _players.TryRemove(player.Id, out _);
         if (!keepOpen)
         {
-            player.Close();
+            await player.CloseAsync();
         }
-        
-        return Task.CompletedTask;
     }
 
-    public Task CloseRoom()
+    public async Task CloseRoom()
     {
-        if (Interlocked.Exchange(ref _closed, true)) return Task.CompletedTask;
+        if (Interlocked.Exchange(ref _closed, true)) return;
 
         foreach (var player in _players.Values)
         {
-            player.Close();
+            await player.CloseAsync();
         }
         
         _players.Clear();
         _host.ParticipatesInRoomId = null;
-
-        return Task.CompletedTask;
     }
 
     public bool HasPlayer(Connection queryConnection) => _players.ContainsKey(queryConnection.Id);

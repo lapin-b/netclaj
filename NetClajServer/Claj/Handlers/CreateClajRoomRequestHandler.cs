@@ -21,7 +21,7 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
                 Message = "Your CLaJ version is outdated, please update it by reinstalling the 'claj' mod."
             });
             
-            context.Connection.Close(ConnectionCloseReason.Closed);
+            await context.Connection.CloseAsync(ConnectionCloseReason.Closed);
             return;
         }
         

@@ -17,7 +17,7 @@ public class JoinClajRoomHandler: IPacketHandler<RoomJoinPacket>
                 packet.RoomId
             );
             
-            context.Connection.Close(ConnectionCloseReason.Error);
+            await context.Connection.CloseAsync(ConnectionCloseReason.Error);
             return;
         }
 

@@ -89,7 +89,7 @@ public class MindustryServer
 
         foreach (var connection in Connections.Values)
         {
-            connection.Close();
+            await connection.CloseAsync();
         }
         
         Connections.Clear();
@@ -123,10 +123,11 @@ public class MindustryServer
         return Rooms.Values.FirstOrDefault(r => r.HostConnectionId == connection.Id || r.HasPlayer(connection));
     }
 
-    public void NotifyConnectionClosure(Connection connection, ConnectionCloseReason? reason)
+    public Task NotifyConnectionClosure(Connection connection, ConnectionCloseReason? reason)
     {
         _logger.LogInformation("Connection {ConnectionId} closed. Reason={Reason}", connection.Id, reason);
         Connections.TryRemove(connection.Id, out _);
+        return Task.CompletedTask;
     }
 
     private async Task TcpAcceptLoop(CancellationToken ct)

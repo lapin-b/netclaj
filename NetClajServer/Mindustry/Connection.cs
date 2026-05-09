@@ -13,21 +13,27 @@ public partial class Connection
 {
     private const int BufferSize = 16;
     public int Id { get; set; }
+    public long? ParticipatesInRoomId { get; set; }
 
-    private MindustryServer _server;
+    private readonly MindustryServer _server;
     private readonly ILogger _logger;
 
     // Connection related properties
     private readonly TcpClient _tcp;
-    private UdpClient _udp;
+    private readonly UdpClient _udp;
     public IPEndPoint? UdpEndpoint { get; set; }
-    public long? ParticipatesInRoomId { get; set; } = null;
-    public bool IsConnected => _tcp.Connected;
+    public bool IsConnected => _tcp.Connected && UdpEndpoint != null;
 
     // Connection state management and shutdown tasks
     private readonly CancellationTokenSource _cts = new();
-    private int _isClosed;
-    private Task? _receiveLoopTask;
+    private Task _receiveLoopTask = Task.CompletedTask;
+    
+    // Making connection closure more robust
+    private int _closeHasStarted;
+    private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public Task Closed => _closedTcs.Task;
+    
+    // TODO: Use a concurrent queue
     public Queue<GamePacket> RawPacketsQueue { get; } = new(16);
 
     public Connection(TcpClient tcp,
@@ -46,6 +52,50 @@ public partial class Connection
         // The server or us can request the TCP read loop to be broken
         var linked = CancellationTokenSource.CreateLinkedTokenSource(serverToken, _cts.Token);
         _receiveLoopTask = ReceiveLoop(linked.Token);
+    }
+
+    public ValueTask CloseAsync(ConnectionCloseReason reason = ConnectionCloseReason.Closed)
+        => new(ExecuteConnectionClosure(reason));
+
+    private async Task ExecuteConnectionClosure(ConnectionCloseReason? reason = null)
+    {
+        if (Interlocked.Exchange(ref _closeHasStarted, 1) == 0)
+        {
+            _logger.LogInformation("{ConnectionID} Closing connection", Id);
+            try
+            {
+                // The first caller does the closure work
+                _cts.Cancel();
+                _tcp.Close();
+                
+                try
+                {
+                    _logger.LogDebug("Waiting for loop break");
+                    await _receiveLoopTask;
+                }
+                catch
+                {
+                    // no-op
+                }
+                
+                _logger.LogInformation("Notifying server of connection termination for cleanup");
+                await _server.NotifyConnectionClosure(this, reason);
+            }
+            finally
+            {
+                
+                UdpEndpoint = null;
+                ParticipatesInRoomId = null;
+                RawPacketsQueue.Clear();
+                _tcp.Dispose();
+                _cts.Dispose();
+                _closedTcs.TrySetResult();
+            }
+        }
+        else
+        {
+            await _closedTcs.Task;
+        }
     }
 
     public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
@@ -118,9 +168,7 @@ public partial class Connection
         }
         finally
         {
-            // We're only escaping the loop when the connection is closed or
-            // the server cancels
-            InternalClosing(ConnectionCloseReason.Error);
+            _ = ExecuteConnectionClosure(ConnectionCloseReason.Closed);
         }
     }
 
@@ -144,33 +192,6 @@ public partial class Connection
             await _server.HandleMindustryPacket(this, mindustryPacket);
         }
     }
-
-    public void Close(ConnectionCloseReason? reason = null)
-    {
-        _cts.Cancel();
-        InternalClosing(reason);
-    }
-
-    private void InternalClosing(ConnectionCloseReason? reason)
-    {
-        if (Interlocked.Exchange(ref _isClosed, 1) == 1)
-        {
-            return;
-        }
-
-        _logger.LogInformation("{ConnectionID} Closing connection", Id);
-        
-        _cts.Cancel();
-        _server.NotifyConnectionClosure(this, reason);
-        UdpEndpoint = null;
-        ParticipatesInRoomId = null;
-        RawPacketsQueue.Clear();
-        
-        _tcp.Close();
-        _tcp.Dispose();
-        _cts.Dispose();
-    }
-    
     
     private bool TryReadFrame(
         ref ReadOnlySequence<byte> buffer,
