@@ -29,7 +29,7 @@ public partial class Connection
     private Task _receiveLoopTask = Task.CompletedTask;
     
     // Making connection closure more robust
-    private int _closeHasStarted;
+    private volatile int _closeHasStarted;
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Closed => _closedTcs.Task;
     
@@ -56,52 +56,13 @@ public partial class Connection
 
     public ValueTask CloseAsync(ConnectionCloseReason reason = ConnectionCloseReason.Closed)
         => new(ExecuteConnectionClosure(reason));
-
-    private async Task ExecuteConnectionClosure(ConnectionCloseReason? reason = null)
-    {
-        if (Interlocked.Exchange(ref _closeHasStarted, 1) == 0)
-        {
-            _logger.LogInformation("{ConnectionID} Closing connection", Id);
-            try
-            {
-                // The first caller does the closure work
-                _cts.Cancel();
-                _tcp.Close();
-                
-                try
-                {
-                    _logger.LogDebug("Waiting for loop break");
-                    await _receiveLoopTask;
-                }
-                catch
-                {
-                    // no-op
-                }
-                
-                _logger.LogInformation("Notifying server of connection termination for cleanup");
-                await _server.NotifyConnectionClosure(this, reason);
-            }
-            finally
-            {
-                
-                UdpEndpoint = null;
-                ParticipatesInRoomId = null;
-                RawPacketsQueue.Clear();
-                _tcp.Dispose();
-                _cts.Dispose();
-                _closedTcs.TrySetResult();
-            }
-        }
-        else
-        {
-            await _closedTcs.Task;
-        }
-    }
-
+    
     public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
 
     public async Task SendTcp(MindustryPacket packet)
     {
+        if (_closeHasStarted == 1) return;
+        
         var sendBytes = Serializer.Serialize(packet, true);
         LogSentBytes("TCP", Id, sendBytes);
         await _tcp.GetStream().WriteAsync(sendBytes, _cts.Token);
@@ -110,11 +71,34 @@ public partial class Connection
 
     public async Task SendUdp(MindustryPacket packet)
     {
+        if (_closeHasStarted == 1) return;
+        
         var sendBytes = Serializer.Serialize(packet, false);
         LogSentBytes("UDP", Id, sendBytes);
         await _udp.SendAsync(sendBytes, UdpEndpoint, _cts.Token);
     }
-
+    
+    public async Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
+    {
+        // A player joins the room as a client and will send a few packets that might arrive before the
+        // room host is aware of this player. To not lose anything, buffer the game packets until the host
+        // is aware of the player.
+        if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null && RawPacketsQueue.Count < BufferSize)
+        {
+            LogNotYetParticipatingInRoom(Id);
+            RawPacketsQueue.Enqueue(raw);
+        }
+        // The buffer is here to prevent filling up the server's memory completely
+        else if (RawPacketsQueue.Count >= BufferSize)
+        {
+            _logger.LogWarning("{ConnectionId} Raw packets queue length exceeded {bufferSize} packets. Dropping.", BufferSize, Id);
+        }
+        else
+        {
+            await _server.HandleMindustryPacket(this, mindustryPacket);
+        }
+    }
+    
     private async Task ReceiveLoop(CancellationToken token)
     {
         var reader = PipeReader.Create(_tcp.GetStream());
@@ -172,26 +156,46 @@ public partial class Connection
         }
     }
 
-    public async Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
+    private async Task ExecuteConnectionClosure(ConnectionCloseReason? reason = null)
     {
-        // A player joins the room as a client and will send a few packets that might arrive before the
-        // room host is aware of this player. To not lose anything, buffer the game packets until the host
-        // is aware of the player.
-        if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null && RawPacketsQueue.Count < BufferSize)
+        if (Interlocked.Exchange(ref _closeHasStarted, 1) == 0)
         {
-            LogNotYetParticipatingInRoom(Id);
-            RawPacketsQueue.Enqueue(raw);
-        }
-        // The buffer is here to prevent filling up the server's memory completely
-        else if (RawPacketsQueue.Count >= BufferSize)
-        {
-            _logger.LogWarning("{ConnectionId} Raw packets queue length exceeded {bufferSize} packets. Dropping.", BufferSize, Id);
+            _logger.LogInformation("{ConnectionID} Closing connection", Id);
+            try
+            {
+                // The first caller does the closure work
+                _cts.Cancel();
+                _tcp.Close();
+                
+                try
+                {
+                    _logger.LogDebug("Waiting for loop break");
+                    await _receiveLoopTask;
+                }
+                catch
+                {
+                    // no-op
+                }
+                
+                _logger.LogInformation("Notifying server of connection termination for cleanup");
+                await _server.NotifyConnectionClosure(this, reason);
+            }
+            finally
+            {
+                UdpEndpoint = null;
+                ParticipatesInRoomId = null;
+                RawPacketsQueue.Clear();
+                _tcp.Dispose();
+                _cts.Dispose();
+                _closedTcs.TrySetResult();
+            }
         }
         else
         {
-            await _server.HandleMindustryPacket(this, mindustryPacket);
+            await _closedTcs.Task;
         }
     }
+
     
     private bool TryReadFrame(
         ref ReadOnlySequence<byte> buffer,
