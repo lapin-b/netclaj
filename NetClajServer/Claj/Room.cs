@@ -38,10 +38,11 @@ public class Room
     {
         if (_closed) return;
         _players.TryAdd(player.Id, player);
-        
+
         await _host.SendTcp(new ConnectionJoinPacket
         {
-            ConnectionId = player.Id
+            ConnectionId = player.Id,
+            RoomId = Id
         });
     }
 
