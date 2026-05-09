@@ -69,6 +69,7 @@ public static class Serializer
             case PacketType.Claj:
                 return DecodeClajPacket(binaryReader);
             default:
+                binaryReader.BaseStream.Seek(0, SeekOrigin.Begin);
                 var packet = new RawPacket();
                 packet.Deserialize(binaryReader);
                 return packet;
