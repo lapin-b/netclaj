@@ -93,7 +93,7 @@ public class Room
             if (_players.TryGetValue(clajWrapper.ConnectionId, out var targetConnection) && targetConnection.IsConnected)
             {
                 // The hosts tells us if the packet it sent should be relayed over TCP or UDP
-                context.Logger.LogDebug("{RoomId} H -> P: {HostId} relaying to {targetId}", Id, HostConnectionId, targetConnection.Id);
+                context.Logger.LogDebug("{RoomId} H -> P: {HostId} relaying to {targetId} {payload}", Id, HostConnectionId, targetConnection.Id, clajWrapper.Buffer);
                 var bufferToSend = new GamePacket(clajWrapper.Buffer);
                 await targetConnection.Send(bufferToSend, clajWrapper.WrappedPacketIsTcp);
             }
@@ -122,13 +122,14 @@ public class Room
                 return;
             }
             
-            context.Logger.LogDebug("P -> H {RoomId}: {sourceId} relaying to {hostId}", Id, context.Connection.Id, HostConnectionId);
             var clajWrapped = new ClajPayloadWrapping()
             {
                 ConnectionId = context.Connection.Id,
                 Buffer = raw.Buffer,
                 WrappedPacketIsTcp = context.IsTcp
             };
+            
+            context.Logger.LogDebug("P -> H {RoomId}: {sourceId} relaying to {hostId} {payload}", Id, context.Connection.Id, HostConnectionId, Serializer.Serialize((clajWrapped)));
 
             await _host.SendTcp(clajWrapped);
         }
