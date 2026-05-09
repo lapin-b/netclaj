@@ -194,13 +194,13 @@ public class MindustryServer
                 packet.IsTcp = false;
             }
             // We don't care about a malformed packet, we just keep on going
+            catch (SerializerException)
+            {
+                // no-op
+                continue;
+            }
             catch (Exception e)
             {
-                if (e is ArgumentOutOfRangeException)
-                {
-                    continue;
-                }
-                
                 _logger.LogWarning(e, "Exception while processing UDP packet");
                 continue;
             }
@@ -226,10 +226,13 @@ public class MindustryServer
                 .Values
                 .FirstOrDefault(c => c.UdpEndpoint != null && c.UdpEndpoint.Equals(message.RemoteEndPoint));
 
-            // TODO: Put the packet through the same flow in the connection
             if (fromConnection != null)
             {
-                await HandleMindustryPacket(fromConnection, packet);
+                await fromConnection.ProcessDeserializedPacket(packet);
+            }
+            else
+            {
+                _logger.LogWarning("Endpoint {endpoint} has no corresponding connection", message.RemoteEndPoint);
             }
         }
         

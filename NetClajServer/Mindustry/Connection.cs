@@ -11,7 +11,7 @@ namespace NetClajServer.Mindustry;
 
 public partial class Connection
 {
-    private const int BufferSize = 32;
+    private const int BufferSize = 16;
     public int Id { get; set; }
 
     private MindustryServer _server;
@@ -53,11 +53,7 @@ public partial class Connection
     public async Task SendTcp(MindustryPacket packet)
     {
         var sendBytes = Serializer.Serialize(packet, true);
-        if (_logger.IsEnabled(LogLevel.Debug))
-        {
-            _logger.LogDebug("TCP: {ConnectionID} Sending {bytes}", Id, sendBytes);
-        }
-
+        LogSentBytes("TCP", Id, sendBytes);
         await _tcp.GetStream().WriteAsync(sendBytes, _cts.Token);
         await _tcp.GetStream().FlushAsync();
     }
@@ -65,11 +61,7 @@ public partial class Connection
     public async Task SendUdp(MindustryPacket packet)
     {
         var sendBytes = Serializer.Serialize(packet, false);
-        if (_logger.IsEnabled(LogLevel.Debug))
-        {
-            _logger.LogDebug("UDP: {ConnectionID} Sending {bytes}", Id, sendBytes);
-        }
-
+        LogSentBytes("UDP", Id, sendBytes);
         await _udp.SendAsync(sendBytes, UdpEndpoint, _cts.Token);
     }
 
@@ -95,23 +87,7 @@ public partial class Connection
                         LogPacketTypeRecv(Id, mindustryPacket.GetType().Name);
                     }
 
-                    // A player joins the room as a client and will send a few packets that might arrive before the
-                    // room host is aware of this player. To not lose anything, buffer the game packets until the host
-                    // is aware of the player.
-                    if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null && RawPacketsQueue.Count < BufferSize)
-                    {
-                        LogNotYetParticipatingInRoom(Id);
-                        RawPacketsQueue.Enqueue(raw);
-                    }
-                    // The buffer is here to prevent filling up the server's memory completely
-                    else if (RawPacketsQueue.Count >= BufferSize)
-                    {
-                        _logger.LogWarning("{ConnectionId} Raw packets queue length exceeded {bufferSize} packets. Dropping.", BufferSize, Id);
-                    }
-                    else
-                    {
-                        await _server.HandleMindustryPacket(this, mindustryPacket);
-                    }
+                    await ProcessDeserializedPacket(mindustryPacket);
                 }
 
                 reader.AdvanceTo(buffer.Start, buffer.End);
@@ -145,6 +121,27 @@ public partial class Connection
             // We're only escaping the loop when the connection is closed or
             // the server cancels
             InternalClosing(ConnectionCloseReason.Error);
+        }
+    }
+
+    public async Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
+    {
+        // A player joins the room as a client and will send a few packets that might arrive before the
+        // room host is aware of this player. To not lose anything, buffer the game packets until the host
+        // is aware of the player.
+        if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null && RawPacketsQueue.Count < BufferSize)
+        {
+            LogNotYetParticipatingInRoom(Id);
+            RawPacketsQueue.Enqueue(raw);
+        }
+        // The buffer is here to prevent filling up the server's memory completely
+        else if (RawPacketsQueue.Count >= BufferSize)
+        {
+            _logger.LogWarning("{ConnectionId} Raw packets queue length exceeded {bufferSize} packets. Dropping.", BufferSize, Id);
+        }
+        else
+        {
+            await _server.HandleMindustryPacket(this, mindustryPacket);
         }
     }
 
@@ -213,4 +210,6 @@ public partial class Connection
         return true;
     }
 
+    [LoggerMessage(LogLevel.Trace, "{Transport}: {connectionId} Sending {bytes}")]
+    public partial void LogSentBytes(string transport, int connectionId, byte[] bytes);
 }
