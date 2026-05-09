@@ -1,17 +1,22 @@
 ﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
+using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class RawPacketHandler: IPacketHandler<RawPacket>
+public class RawPacketHandler: IPacketHandler<RawPacket>, IPacketHandler<ClajPayloadWrapping>
 {
-    public async Task HandleAsync(PacketContext context, RawPacket packet)
+    public Task HandleAsync(PacketContext context, RawPacket packet)
     {
         if (context.Connection.ParticipatesInRoomId is not { } participatesInRoomId)
         {
             // Ignore the packet if not participating in a room
-            return;
+            context.Logger.LogWarning(
+                "{ConnectionId} is not yet participating in a room and is sending raw packets",
+                context.Connection.Id
+            );
+            return Task.CompletedTask;
         }
 
         if (!context.Server.Rooms.TryGetValue(participatesInRoomId, out var room))
@@ -24,9 +29,26 @@ public class RawPacketHandler: IPacketHandler<RawPacket>
 
             context.Connection.ParticipatesInRoomId = null;
 
-            return;
+            return Task.CompletedTask;
         }
 
-        await room.HandlePacket(context, packet);
+        return room.HandlePacket(context, packet);
+    }
+
+    public Task HandleAsync(PacketContext context, ClajPayloadWrapping packet)
+    {
+        if (context.Server.FindConnectionInRooms(context.Connection) is not { } room)
+        {
+            context.Logger.LogWarning("Connection is partaking in room {roomId} but it doesn't exist", context.Connection.ParticipatesInRoomId);
+            return Task.CompletedTask;
+        }
+
+        if (context.Connection.Id != room.HostConnectionId)
+        {
+            context.Logger.LogWarning("Received a Claj wrapping packet not from room host connection. Dropping");
+            return Task.CompletedTask;
+        }
+
+        return room.HandlePacket(context, packet);
     }
 }

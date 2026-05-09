@@ -7,6 +7,7 @@ using NetClajServer.Claj.Handlers;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Datastructures;
 using NetClajServer.Packets;
+using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Mindustry;
@@ -44,8 +45,10 @@ public class MindustryServer
         RegisterPacketHandler(new CreateClajRoomRequestHandler());
         RegisterPacketHandler(new CloseClajRoomRequestHandler());
         RegisterPacketHandler(new JoinClajRoomHandler());
-        
-        RegisterPacketHandler(new RawPacketHandler());
+
+        var rawPacketHandler = new RawPacketHandler();
+        RegisterPacketHandler<RawPacket>(rawPacketHandler);
+        RegisterPacketHandler<ClajPayloadWrapping>(rawPacketHandler);
 
         // Framework packets can be handled in their own grouped handler
         // since their respective handler is very short.
