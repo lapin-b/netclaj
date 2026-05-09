@@ -91,6 +91,7 @@ public class Room
 
             if (_players.TryGetValue(clajWrapper.ConnectionId, out var targetConnection) && targetConnection.IsConnected)
             {
+                context.Logger.LogDebug("{RoomId} H -> P: {HostId} relaying to {targetId}", Id, HostConnectionId, targetConnection.Id);
                 var bufferToSend = new RawPacket(clajWrapper.Buffer);
                 await targetConnection.Send(bufferToSend, clajWrapper.IsTcp);
             }
@@ -118,7 +119,8 @@ public class Room
             {
                 return;
             }
-
+            
+            context.Logger.LogDebug("P -> H {RoomId}: {sourceId} relaying to {hostId}", Id, context.Connection.Id, HostConnectionId);
             var clajWrapped = new ClajPayloadWrapping()
             {
                 ConnectionId = context.Connection.Id,
