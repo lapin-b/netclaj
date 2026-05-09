@@ -13,7 +13,7 @@ public abstract class MindustryPacketWithConId: IMindustryPacket
 
     public void Deserialize(BinaryReader reader)
     {
-        reader.ReadInt32BigEndian();
+        ConnectionId = reader.ReadInt32BigEndian();
         DeserializeInnerPayload(reader);
     }
 
