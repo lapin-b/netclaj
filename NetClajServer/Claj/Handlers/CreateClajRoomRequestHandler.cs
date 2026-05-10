@@ -21,11 +21,25 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
                 Message = "Your CLaJ version is outdated, please update it by reinstalling the 'claj' mod."
             });
             
-            await context.Connection.CloseAsync(ConnectionCloseReason.Closed);
+            await context.Connection.CloseAsync(ConnectionCloseReason.Error);
             return;
         }
-        
-        // TODO: handle if the connection is already in or hosting a room
+
+        if (
+            context.Connection.ParticipatesInRoomId is { } roomId
+            && context.Server.Rooms.TryGetValue(roomId, out var existingRoom)
+            && existingRoom.HostConnectionId == context.Connection.Id
+        )
+        {
+            // This connection is already a host of a room. Ignore the room creation request
+            context.Logger.LogWarning(
+                "Connection {ConnectionId} is already hosting a room {roomId}",
+                context.Connection.Id,
+                roomId
+            );
+
+            return;
+        }
 
         var room = new Room(0, context.Connection);
         do
@@ -36,7 +50,7 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
         context.Logger.LogInformation("Created room {roomId} ({roomIdStr}) for host {connectionId}", room.Id, room.IdString, context.Connection.Id);
         context.Connection.ParticipatesInRoomId = room.Id;
         
-        await context.Connection.SendTcp(new RoomLinkPacket()
+        await context.Connection.SendTcp(new RoomLinkPacket
         {
             RoomId = room.Id
         });
