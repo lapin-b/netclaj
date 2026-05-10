@@ -54,5 +54,10 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
         {
             RoomId = room.Id
         });
+
+        await context.Connection.SendTcp(new ClajMessagePacket
+        {
+            Message = "Warning: this CLaJ node is very alpha software although it has been tested. Here be dragons !"
+        });
     }
 }
