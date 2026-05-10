@@ -29,7 +29,7 @@ public partial class Connection
     private Task _receiveLoopTask = Task.CompletedTask;
     
     // Making connection closure more robust
-    private volatile int _closeHasStarted;
+    private int _closeHasStarted;
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Closed => _closedTcs.Task;
     
@@ -61,7 +61,7 @@ public partial class Connection
 
     public async Task SendTcp(MindustryPacket packet)
     {
-        if (_closeHasStarted == 1) return;
+        if (Volatile.Read(ref _closeHasStarted) == 1) return;
         
         var sendBytes = Serializer.Serialize(packet, true);
         LogSentBytes("TCP", Id, sendBytes);
@@ -71,7 +71,7 @@ public partial class Connection
 
     public async Task SendUdp(MindustryPacket packet)
     {
-        if (_closeHasStarted == 1) return;
+        if (Volatile.Read(ref _closeHasStarted) == 1) return;
         
         var sendBytes = Serializer.Serialize(packet, false);
         LogSentBytes("UDP", Id, sendBytes);
