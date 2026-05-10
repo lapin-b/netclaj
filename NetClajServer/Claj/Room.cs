@@ -16,7 +16,7 @@ public class Room
     public string IdString {
         get
         {
-            var longBytes = new byte[8];
+            Span<byte> longBytes = stackalloc byte[8];
             BinaryPrimitives.WriteInt64BigEndian(longBytes, Id);
             return Base64Url.EncodeToString(longBytes);
         }
