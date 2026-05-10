@@ -1,5 +1,4 @@
-﻿using System.Net.Mime;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Packets.Claj;
 
@@ -26,7 +25,7 @@ public class CloseClajRoomRequestHandler: IPacketHandler<RoomCloseRequestPacket>
         }
 
         context.Logger.LogInformation("Closing room {roomId} because host closed it", room.Id);
-        context.Server.Rooms.TryRemove(room.Id, out _);
         await room.CloseRoom();
+        context.Server.Rooms.TryRemove(room.Id, out _);
     }
 }

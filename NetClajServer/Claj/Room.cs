@@ -26,7 +26,6 @@ public class Room
     
     private readonly Connection _host;
     private readonly ConcurrentDictionary<int, Connection> _players = new();
-    private bool _closed = false;
 
     public Room(long roomId, Connection host)
     {
@@ -36,7 +35,6 @@ public class Room
 
     public async Task JoinRoom(Connection player)
     {
-        if (_closed) return;
         _players.TryAdd(player.Id, player);
 
         await _host.SendTcp(new ConnectionJoinPacket
@@ -46,24 +44,29 @@ public class Room
         });
     }
 
-    public async Task LeaveRoom(Connection player, bool keepOpen = false)
+    public async Task LeaveRoom(Connection player, bool keepOpen = false, bool notifyHost = false)
     {
-        if (_closed) return;
-
         _players.TryRemove(player.Id, out _);
         if (!keepOpen)
         {
             await player.CloseAsync();
         }
+
+        if (notifyHost)
+        {
+            await _host.SendTcp(new ConnectionClosedPacket
+            {
+                ConnectionId = player.Id, 
+                Reason = ConnectionCloseReason.Closed
+            });
+        }
     }
 
     public async Task CloseRoom()
     {
-        if (Interlocked.Exchange(ref _closed, true)) return;
-
         foreach (var player in _players.Values)
         {
-            await player.CloseAsync();
+            await LeaveRoom(player, false, true);
         }
         
         _players.Clear();
@@ -75,8 +78,6 @@ public class Room
 
     public async Task HandlePacket(PacketContext context, MindustryPacket mindustryPacket)
     {
-        if (_closed) return;
-
         // Room host -> specific client
         if (context.Connection.Id == HostConnectionId)
         {
