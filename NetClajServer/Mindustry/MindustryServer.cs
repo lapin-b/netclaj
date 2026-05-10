@@ -138,13 +138,13 @@ public class MindustryServer
             if (room.HostConnectionId == connection.Id)
             {
                 _logger.LogInformation("Closing room");
-                await room.CloseRoom();
+                await room.Close();
                 Rooms.TryRemove(room.Id, out _);
             }
             else
             {
                 _logger.LogInformation("Leaving room");
-                await room.LeaveRoom(connection, false, true);
+                await room.TryLeaveRoom(connection, false, true);
             }
         }
     }

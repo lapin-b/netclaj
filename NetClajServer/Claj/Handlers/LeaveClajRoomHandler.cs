@@ -24,7 +24,7 @@ public class LeaveClajRoomHandler: IPacketHandler<ConnectionClosedPacket>
         if (context.Server.Connections.TryGetValue(packet.ConnectionId, out var targetConnection))
         {
             context.Logger.LogInformation("Host made {ConnectionID} leave the room {RoomId}", targetConnection.Id, room.Id);
-            await room.LeaveRoom(targetConnection);
+            await room.TryLeaveRoom(targetConnection);
         }
         else
         {

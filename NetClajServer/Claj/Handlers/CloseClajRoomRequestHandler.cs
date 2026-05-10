@@ -25,7 +25,7 @@ public class CloseClajRoomRequestHandler: IPacketHandler<RoomCloseRequestPacket>
         }
 
         context.Logger.LogInformation("Closing room {roomId} because host closed it", room.Id);
-        await room.CloseRoom();
+        await room.Close();
         context.Server.Rooms.TryRemove(room.Id, out _);
     }
 }

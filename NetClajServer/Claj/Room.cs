@@ -21,20 +21,29 @@ public class Room
             return Base64Url.EncodeToString(longBytes);
         }
     }
-
     public int HostConnectionId => _host.Id;
+    public bool IsClosed => Volatile.Read(ref _closingStarted) == 1;
     
     private readonly Connection _host;
     private readonly ConcurrentDictionary<int, Connection> _players = new();
-
+    
+    // State management
+    private int _closingStarted = 0;
+    private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    
     public Room(long roomId, Connection host)
     {
         Id = roomId;
         _host = host;
     }
 
-    public async Task JoinRoom(Connection player)
+    public async Task<bool> TryJoinRoom(Connection player)
     {
+        if (IsClosed)
+        {
+            return false;
+        }
+        
         _players.TryAdd(player.Id, player);
 
         await _host.SendTcp(new ConnectionJoinPacket
@@ -42,9 +51,11 @@ public class Room
             ConnectionId = player.Id,
             RoomId = Id
         });
+
+        return true;
     }
 
-    public async Task LeaveRoom(Connection player, bool keepOpen = false, bool notifyHost = false)
+    public async Task<bool> TryLeaveRoom(Connection player, bool keepOpen = false, bool notifyHost = false)
     {
         _players.TryRemove(player.Id, out _);
         if (!keepOpen)
@@ -60,18 +71,11 @@ public class Room
                 Reason = ConnectionCloseReason.Closed
             });
         }
+
+        return true;
     }
 
-    public async Task CloseRoom()
-    {
-        foreach (var player in _players.Values)
-        {
-            await LeaveRoom(player, false, true);
-        }
-        
-        _players.Clear();
-        _host.ParticipatesInRoomId = null;
-    }
+    public ValueTask Close() => new(ExecuteRoomTeardown()); 
 
     public bool HasPlayer(Connection queryConnection) => _players.ContainsKey(queryConnection.Id);
     public bool HasPlayer(int connectionId) => _players.ContainsKey(connectionId);
@@ -130,6 +134,36 @@ public class Room
             context.Logger.LogDebug("P -> H {RoomId}: {sourceId} relaying to {hostId} {payload}", Id, context.Connection.Id, HostConnectionId, Serializer.Serialize((clajWrapped)));
 
             await _host.SendTcp(clajWrapped);
+        }
+    }
+
+    private async Task ExecuteRoomTeardown()
+    {
+        if (Interlocked.Exchange(ref _closingStarted, 1) == 0)
+        {
+            // First caller does the room shutdown work
+            try
+            {
+                /*
+                 * Since the host is no longer interested in the room and will close its connection soon,
+                 * we can get away with closing the player's connections without telling the host.
+                 */
+                foreach (var player in _players.Values)
+                {
+                    player.ParticipatesInRoomId = null;
+                    await player.CloseAsync();
+                }
+            }
+            finally
+            {
+                _host.ParticipatesInRoomId = null;
+                _players.Clear();
+                _closedTcs.TrySetResult();
+            }
+        }
+        else
+        {
+            await _closedTcs.Task;
         }
     }
 }
