@@ -136,10 +136,10 @@ public partial class Connection
         {
             // no-op
         }
-        catch (IOException)
+        catch (IOException e)
         {
-            // Remote side broke the connection
-            _logger.LogWarning("{ConnectionID} Remote closed the connection (IOException)", Id);
+            // Remote side broke the connection or something
+            _logger.LogWarning(e, "{ConnectionID} Remote closed the connection (IOException)", Id);
         }
         catch (SocketException e) when (token.IsCancellationRequested)
         {
