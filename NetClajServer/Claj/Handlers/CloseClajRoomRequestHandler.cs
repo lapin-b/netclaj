@@ -14,7 +14,7 @@ public class CloseClajRoomRequestHandler: IPacketHandler<RoomCloseRequestPacket>
             return;
         }
 
-        if (room.HostConnectionId != context.Connection.Id)
+        if (context.Connection.Id != room.HostConnectionId)
         {
             context.Logger.LogWarning(
                 "Connection {ConnectionID} tried to close a room it didn't host ({hostConnectionId} does)", 

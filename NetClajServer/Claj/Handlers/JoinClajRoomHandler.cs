@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Net.Mime;
+using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
@@ -9,6 +10,7 @@ public class JoinClajRoomHandler: IPacketHandler<RoomJoinPacket>
 {
     public async Task HandleAsync(PacketContext context, RoomJoinPacket packet)
     {
+        // Does the room even exist ?
         if (!context.Server.Rooms.TryGetValue(packet.RoomId, out var roomToJoin))
         {
             context.Logger.LogWarning(
@@ -21,14 +23,33 @@ public class JoinClajRoomHandler: IPacketHandler<RoomJoinPacket>
             return;
         }
 
-        if (context.Server.FindConnectionInRooms(context.Connection) is {} alreadyJoinedRoom)
+        // A player can leave a room freely (TryLeaveRoom will return true), but
+        // the host can't.
+        if (
+            context.Server.FindConnectionInRooms(context.Connection) is {} alreadyJoinedRoom
+            && !await alreadyJoinedRoom.TryLeaveRoom(context.Connection, true)
+        )
         {
-            await alreadyJoinedRoom.TryLeaveRoom(context.Connection, true);
+            context.Logger.LogWarning(
+                "{Connection} tried to join room {targetRoomId}, but it is already hosting {hostingRoomId}",
+                context.Connection.Id,
+                roomToJoin.Id,
+                alreadyJoinedRoom.Id
+            );
+
+            return;
         }
 
         context.Logger.LogInformation("{ConnectionId} joining room {roomId}", context.Connection.Id, roomToJoin.Id);
-        context.Connection.ParticipatesInRoomId = roomToJoin.Id;
-        await roomToJoin.TryJoinRoom(context.Connection);
+        
+        // TryJoinRoom will fail if the room is being dismantled or is closed
+        if (!await roomToJoin.TryJoinRoom(context.Connection))
+        {
+            context.Logger.LogWarning("{ConnectionId} tried to join a room being dismantled", context.Connection.Id);
+            await context.Connection.CloseAsync(ConnectionCloseReason.Error);
+            return;
+        }
+        
         while (context.Connection.RawPacketsQueue.TryDequeue(out var pendingPacket))
         {
             context.Logger.LogDebug("Submitting packets from {ConnectionId} into the room", context.Connection.Id);

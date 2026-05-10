@@ -31,11 +31,23 @@ public class Room
     private int _closingStarted = 0;
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
-    public Room(long roomId, Connection host)
+    public Room(Connection host)
     {
-        Id = roomId;
         _host = host;
     }
+
+    public void Open()
+    {
+        if (Id == 0)
+        {
+            throw new InvalidOperationException("Room ID is not set");
+        }
+
+        _host.ParticipatesInRoomId = Id;
+    }
+    
+    public ValueTask Close() => new(ExecuteRoomTeardown()); 
+    
 
     public async Task<bool> TryJoinRoom(Connection player)
     {
@@ -45,6 +57,7 @@ public class Room
         }
         
         _players.TryAdd(player.Id, player);
+        player.ParticipatesInRoomId = Id;
 
         await _host.SendTcp(new ConnectionJoinPacket
         {
@@ -57,7 +70,14 @@ public class Room
 
     public async Task<bool> TryLeaveRoom(Connection player, bool keepOpen = false, bool notifyHost = false)
     {
+        if (player.Id == HostConnectionId)
+        {
+            // A host cannot leave its own room unless it closes it
+            return false;
+        }
+        
         _players.TryRemove(player.Id, out _);
+        player.ParticipatesInRoomId = null;
         if (!keepOpen)
         {
             await player.CloseAsync();
@@ -74,8 +94,6 @@ public class Room
 
         return true;
     }
-
-    public ValueTask Close() => new(ExecuteRoomTeardown()); 
 
     public bool HasPlayer(Connection queryConnection) => _players.ContainsKey(queryConnection.Id);
     public bool HasPlayer(int connectionId) => _players.ContainsKey(connectionId);

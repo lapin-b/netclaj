@@ -8,7 +8,6 @@ public class LeaveClajRoomHandler: IPacketHandler<ConnectionClosedPacket>
 {
     public async Task HandleAsync(PacketContext context, ConnectionClosedPacket packet)
     {
-        // Get the room this packet is for
         if (context.Server.FindConnectionInRooms(context.Connection) is not {} room)
         {
             context.Logger.LogWarning("Tried to disconnect from a non-existing room");

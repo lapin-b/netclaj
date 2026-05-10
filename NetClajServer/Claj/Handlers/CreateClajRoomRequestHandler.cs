@@ -41,14 +41,14 @@ public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPack
             return;
         }
 
-        var room = new Room(0, context.Connection);
+        var room = new Room(context.Connection);
         do
         {
             room.Id = Random.Shared.NextInt64(long.MinValue, long.MaxValue);
-        } while (!context.Server.Rooms.TryAdd(room.Id, room));
+        } while (room.Id == 0 || !context.Server.Rooms.TryAdd(room.Id, room));
+        room.Open();
 
         context.Logger.LogInformation("Created room {roomId} ({roomIdStr}) for host {connectionId}", room.Id, room.IdString, context.Connection.Id);
-        context.Connection.ParticipatesInRoomId = room.Id;
         
         await context.Connection.SendTcp(new RoomLinkPacket
         {

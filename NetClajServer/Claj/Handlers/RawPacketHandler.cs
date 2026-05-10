@@ -13,26 +13,30 @@ public class RawPacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajPa
         {
             // Ignore the packet if not participating in a room
             context.Logger.LogWarning(
-                "{ConnectionId} is not yet participating in a room and is sending raw packets",
+                "{ConnectionId} is not yet participating in a room and raw packets are already trying to flow through handlers. Dropping",
                 context.Connection.Id
             );
             return Task.CompletedTask;
         }
 
-        if (!context.Server.Rooms.TryGetValue(participatesInRoomId, out var room))
+        if (context.Server.Rooms.TryGetValue(participatesInRoomId, out var room))
         {
-            context.Logger.LogWarning(
-                "Connection {ConnectionId} says it is participating in room {roomId} but it doesn't exist",
-                context.Connection.Id,
-                participatesInRoomId
-            );
-
-            context.Connection.ParticipatesInRoomId = null;
-
-            return Task.CompletedTask;
+            return room.HandlePacket(context, packet);
         }
+        
+        // The room class owns ParticipatesInRoomId management.
+        // This should NOT happen.
+        context.Logger.LogError(
+            "Connection {ConnectionId} says it is participating in room {roomId} but it doesn't exist",
+            context.Connection.Id,
+            participatesInRoomId
+        );
 
-        return room.HandlePacket(context, packet);
+        // The only time a handler can edit the participating room id to reflect reality
+        // is when it is pointing to a room that doesn't exist.
+        context.Connection.ParticipatesInRoomId = null;
+
+        return Task.CompletedTask;
     }
 
     public Task HandleAsync(PacketContext context, ClajPayloadWrapping packet)
