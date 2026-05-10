@@ -45,6 +45,7 @@ public class MindustryServer
         RegisterPacketHandler(new CreateClajRoomRequestHandler());
         RegisterPacketHandler(new CloseClajRoomRequestHandler());
         RegisterPacketHandler(new JoinClajRoomHandler());
+        RegisterPacketHandler(new LeaveClajRoomHandler());
 
         var rawPacketHandler = new RawPacketHandler();
         RegisterPacketHandler<GamePacket>(rawPacketHandler);
@@ -123,11 +124,29 @@ public class MindustryServer
         return Rooms.Values.FirstOrDefault(r => r.HostConnectionId == connection.Id || r.HasPlayer(connection));
     }
 
-    public Task NotifyConnectionClosure(Connection connection, ConnectionCloseReason? reason)
+    public async Task NotifyConnectionClosure(Connection connection, ConnectionCloseReason? reason)
     {
+        // Remove the connection from the registry
         _logger.LogInformation("Connection {ConnectionId} closed. Reason={Reason}", connection.Id, reason);
         Connections.TryRemove(connection.Id, out _);
-        return Task.CompletedTask;
+        
+        // Remove this client from the room or close it, depending on who it is
+        if (connection.ParticipatesInRoomId is { } participatesInRoomId
+            && Rooms.TryGetValue(participatesInRoomId, out var room)
+           )
+        {
+            if (room.HostConnectionId == connection.Id)
+            {
+                _logger.LogInformation("Closing room");
+                await room.CloseRoom();
+                Rooms.TryRemove(room.Id, out _);
+            }
+            else
+            {
+                _logger.LogInformation("Leaving room");
+                await room.LeaveRoom(connection, false, true);
+            }
+        }
     }
 
     private async Task TcpAcceptLoop(CancellationToken ct)
@@ -184,6 +203,7 @@ public class MindustryServer
                     break;
                 }
 
+                _logger.LogError(e, "And UDP decided to party");
                 throw;
             }
 

@@ -12,11 +12,11 @@ public class ConnectionClosedPacket: MindustryPacketWithConId
 
     protected override void DeserializeInnerPayload(BinaryReader reader)
     {
-        Reason = (ConnectionCloseReason)reader.ReadInt32BigEndian();
+        Reason = (ConnectionCloseReason)reader.ReadByte();
     }
 
     protected override void SerializeInnerPayload(BinaryWriter writer)
     {
-        writer.WriteInt32BigEndian((int)Reason);
+        writer.Write((byte)Reason);
     }
 }

@@ -15,7 +15,6 @@ public class LeaveClajRoomHandler: IPacketHandler<ConnectionClosedPacket>
             return;
         }
 
-        // Check if the real host disconnected the target connection from the room
         if (context.Connection.Id != room.HostConnectionId)
         {
             context.Logger.LogWarning("Connection ID {ConnectionID} has tried to close another's player while not being the host", context.Connection.Id);
@@ -24,6 +23,7 @@ public class LeaveClajRoomHandler: IPacketHandler<ConnectionClosedPacket>
 
         if (context.Server.Connections.TryGetValue(packet.ConnectionId, out var targetConnection))
         {
+            context.Logger.LogInformation("Host made {ConnectionID} leave the room {RoomId}", targetConnection.Id, room.Id);
             await room.LeaveRoom(targetConnection);
         }
         else
