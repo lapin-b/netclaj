@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Framework;
@@ -34,7 +35,12 @@ public partial class Connection
     public Task Closed => _closedTcs.Task;
     
     // TODO: Use a concurrent queue
-    public Queue<GamePacket> RawPacketsQueue { get; } = new(16);
+    public Channel<GamePacket> RawPacketsQueue { get; } = Channel.CreateBounded<GamePacket>(
+        new BoundedChannelOptions(16)
+        {
+            FullMode = BoundedChannelFullMode.DropWrite
+        }
+    );
 
     public Connection(TcpClient tcp,
         UdpClient udp,
@@ -83,15 +89,11 @@ public partial class Connection
         // A player joins the room as a client and will send a few packets that might arrive before the
         // room host is aware of this player. To not lose anything, buffer the game packets until the host
         // is aware of the player.
-        if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null && RawPacketsQueue.Count < BufferSize)
+        if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null)
         {
             LogNotYetParticipatingInRoom(Id);
-            RawPacketsQueue.Enqueue(raw);
-        }
-        // The buffer is here to prevent filling up the server's memory completely
-        else if (RawPacketsQueue.Count >= BufferSize)
-        {
-            _logger.LogWarning("{ConnectionId} Raw packets queue length exceeded {bufferSize} packets. Dropping.", BufferSize, Id);
+            await RawPacketsQueue.Writer.WriteAsync(raw);
+            // ^ The channel handles excess game packets being written and drops them if needed
         }
         else
         {
@@ -184,7 +186,6 @@ public partial class Connection
             {
                 UdpEndpoint = null;
                 ParticipatesInRoomId = null;
-                RawPacketsQueue.Clear();
                 _tcp.Dispose();
                 _cts.Dispose();
                 _closedTcs.TrySetResult();

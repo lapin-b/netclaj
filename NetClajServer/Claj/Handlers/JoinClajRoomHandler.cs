@@ -50,7 +50,7 @@ public class JoinClajRoomHandler: IPacketHandler<RoomJoinPacket>
             return;
         }
         
-        while (context.Connection.RawPacketsQueue.TryDequeue(out var pendingPacket))
+        while (context.Connection.RawPacketsQueue.Reader.TryRead(out var pendingPacket))
         {
             context.Logger.LogDebug("Submitting packets from {ConnectionId} into the room", context.Connection.Id);
             await roomToJoin.HandlePacket(context, pendingPacket);
