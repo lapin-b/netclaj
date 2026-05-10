@@ -115,7 +115,7 @@ public class Room
                 context.Logger.LogDebug("{RoomId} H -> P: {HostId} relaying to {targetId} {payload}", Id, HostConnectionId, targetConnection.Id, clajWrapper.Buffer);
                 var bufferToSend = new GamePacket(clajWrapper.Buffer);
                 await targetConnection.Send(bufferToSend, clajWrapper.WrappedPacketIsTcp);
-                await _host.SendTcp(new ConnectionIdlingPacket { ConnectionId = targetConnection.Id, IsTcp = true });
+                await _host.SendTcp(new ConnectionIdlingPacket { ConnectionId = targetConnection.Id });
             }
             else
             {
@@ -168,6 +168,7 @@ public class Room
                  */
                 foreach (var player in _players.Values)
                 {
+                    await _host.SendTcp(new ConnectionClosedPacket() { ConnectionId = player.Id });
                     player.ParticipatesInRoomId = null;
                     await player.CloseAsync();
                 }
