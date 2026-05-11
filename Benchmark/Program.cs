@@ -27,7 +27,7 @@ public class Benchmark
     }
     
     [Benchmark]
-    public byte[] BenchmarkSerializer()
+    public Memory<byte> BenchmarkSerializer()
     {
         return NetClajServer.Mindustry.Serializer.Serialize(new ConnectionJoinPacket
         {
