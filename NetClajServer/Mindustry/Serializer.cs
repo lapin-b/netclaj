@@ -8,7 +8,7 @@ namespace NetClajServer.Mindustry;
 
 public static class Serializer
 {
-    public static byte[] Serialize(MindustryPacket packet, bool isTcp = true)
+    public static Memory<byte> Serialize(MindustryPacket packet, bool isTcp = true)
     {
         var memoryStream = new MemoryStream(1024);
         var binaryWriter = new BinaryWriter(memoryStream);
@@ -36,7 +36,7 @@ public static class Serializer
             binaryWriter.WriteInt16BigEndian((short)packetLength);   
         }
 
-        return memoryStream.ToArray();
+        return memoryStream.GetBuffer().AsMemory(0, (int)memoryStream.Length);
     }
     
     public static MindustryPacket Deserialize(ReadOnlyMemory<byte> payload)

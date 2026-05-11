@@ -237,5 +237,5 @@ public partial class Connection
     }
 
     [LoggerMessage(LogLevel.Trace, "{Transport}: {connectionId} Sending {bytes}")]
-    public partial void LogSentBytes(string transport, int connectionId, byte[] bytes);
+    public partial void LogSentBytes(string transport, int connectionId, Memory<byte> bytes);
 }
