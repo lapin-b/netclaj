@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Claj;
 using NetClajServer.Claj.Handlers;
@@ -16,7 +17,7 @@ public class MindustryServer
 {
     private readonly ILogger<MindustryServer> _logger;
     private readonly ILoggerProvider _loggerProvider;
-    
+
     // Packet routing
     private readonly Dictionary<Type, Func<PacketContext, MindustryPacket, Task>> _router = new();
 
@@ -34,7 +35,12 @@ public class MindustryServer
     // Active connections and rooms management
     public ConcurrentDictionary<int, Connection> Connections { get; } = new();
     public ConcurrentDictionary<long, Room> Rooms { get; } = new();
-    public MindustryServer(ClajServerConfiguration config, ILogger<MindustryServer> logger, ILoggerProvider loggerProvider)
+    public MindustryServer(
+        ClajServerConfiguration config, 
+        ILogger<MindustryServer> logger, 
+        ILoggerProvider loggerProvider,
+        IServiceProvider provider
+        )
     {
         _logger = logger;
         _loggerProvider = loggerProvider;
@@ -42,21 +48,15 @@ public class MindustryServer
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
 
-        RegisterPacketHandler(new CreateClajRoomRequestHandler());
-        RegisterPacketHandler(new CloseClajRoomRequestHandler());
-        RegisterPacketHandler(new JoinClajRoomHandler());
-        RegisterPacketHandler(new LeaveClajRoomHandler());
-
-        var rawPacketHandler = new RawPacketHandler();
-        RegisterPacketHandler<GamePacket>(rawPacketHandler);
-        RegisterPacketHandler<ClajPayloadWrapping>(rawPacketHandler);
-
-        // Framework packets can be handled in their own grouped handler
-        // since their respective handler is very short.
-        var frameworkPacketsHandler = new FrameworkPacketsHandler();
-        RegisterPacketHandler<PingPacket>(frameworkPacketsHandler);
-        RegisterPacketHandler<KeepAlivePacket>(frameworkPacketsHandler);
-        RegisterPacketHandler<DiscoverHostPacket>(frameworkPacketsHandler);
+        MapPacketHandlers<RoomCreateRequestPacket>(provider);
+        MapPacketHandlers<RoomCloseRequestPacket>(provider);
+        MapPacketHandlers<PingPacket>(provider);
+        MapPacketHandlers<DiscoverHostPacket>(provider);
+        MapPacketHandlers<KeepAlivePacket>(provider);
+        MapPacketHandlers<RoomJoinPacket>(provider);
+        MapPacketHandlers<ConnectionClosedPacket>(provider);
+        MapPacketHandlers<GamePacket>(provider);
+        MapPacketHandlers<ClajPayloadWrapping>(provider);
     }
 
     public void Start()
@@ -260,9 +260,11 @@ public class MindustryServer
         _udpListener.Close();
     }
 
-    private void RegisterPacketHandler<TPacket>(IPacketHandler<TPacket> handler)
+    private void MapPacketHandlers<TPacket>(IServiceProvider provider)
         where TPacket : MindustryPacket
     {
+        // Caching a delegate calling a handler like this is fine because they're all singletons.
+        var handler = provider.GetRequiredService<IPacketHandler<TPacket>>();
         _router[typeof(TPacket)] = (context, packet) => handler.HandleAsync(context, (TPacket)packet);
     }
 
