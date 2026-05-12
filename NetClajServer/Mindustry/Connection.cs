@@ -17,7 +17,7 @@ public partial class Connection
     public long? ParticipatesInRoomId { get; set; }
 
     private readonly MindustryServer _server;
-    private readonly ILogger _logger;
+    private readonly ILogger<Connection> _logger;
 
     // Connection related properties
     private readonly TcpClient _tcp;
@@ -43,11 +43,14 @@ public partial class Connection
         }
     );
 
-    public Connection(TcpClient tcp,
+    public Connection(
+        int connectionId,
+        TcpClient tcp,
         UdpClient udp,
         MindustryServer server,
-        ILogger logger)
+        ILogger<Connection> logger)
     {
+        Id = connectionId;
         _tcp = tcp;
         _udp = udp;
         _server = server;

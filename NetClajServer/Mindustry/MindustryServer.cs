@@ -16,7 +16,7 @@ namespace NetClajServer.Mindustry;
 public class MindustryServer
 {
     private readonly ILogger<MindustryServer> _logger;
-    private readonly ILoggerProvider _loggerProvider;
+    private readonly ConnectionFactory _connectionFactory;
 
     // Packet routing
     private readonly Dictionary<Type, Func<PacketContext, MindustryPacket, Task>> _router = new();
@@ -39,12 +39,12 @@ public class MindustryServer
     public MindustryServer(
         ClajServerConfiguration config, 
         ILogger<MindustryServer> logger, 
-        ILoggerProvider loggerProvider,
-        IServiceProvider provider
-        )
+        IServiceProvider provider,
+        ConnectionFactory connectionFactory
+    )
     {
         _logger = logger;
-        _loggerProvider = loggerProvider;
+        _connectionFactory = connectionFactory;
 
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
@@ -170,23 +170,22 @@ public class MindustryServer
                 {
                     break;
                 }
+                
+                _logger.LogError(e, "And boom");
 
                 throw;
             }
 
-            var connection = new Connection(
-                client, 
-                _udpListener, 
-                this, 
-                _loggerProvider.CreateLogger(nameof(Connection))
+            var connection = _connectionFactory.Create(
+                client,
+                _udpListener,
+                this,
+                id => Connections.ContainsKey(id)
             );
-            
-            do
-            {
-                connection.Id = Random.Shared.Next(int.MinValue, int.MaxValue);
-            } while (!Connections.TryAdd(connection.Id, connection));
 
+            Connections.TryAdd(connection.Id, connection);
             connection.Start(ct);
+
             _logger.LogInformation("Client ID {ConnectionID} connected", connection.Id);
             await connection.SendTcp(new RegisterTcpPacket { ConnectionId = connection.Id });
         }

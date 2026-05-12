@@ -19,7 +19,7 @@ public class RoomFactory
         do
         {
             roomId = Random.Shared.NextInt64();
-        } while (!roomIdExists(roomId));
+        } while (roomIdExists(roomId));
         
         return new Room(roomId, host, _loggerFactory.CreateLogger<Room>());
     }

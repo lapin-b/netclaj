@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NetClajServer.Claj;
 using NetClajServer.Claj.Handlers;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Datastructures;
@@ -44,7 +45,8 @@ class Program
                 .ClearProviders()
                 .AddSerilog()
             )
-            
+            .AddSingleton<RoomFactory>()
+            .AddSingleton<ConnectionFactory>()
             .AddSingleton<MindustryServer>()
             .AddSingleton<ClajServerConfiguration>(services =>
             {
