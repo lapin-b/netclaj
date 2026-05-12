@@ -22,6 +22,7 @@ public partial class Connection
     // Connection related properties
     private readonly TcpClient _tcp;
     private readonly UdpClient _udp;
+    private readonly NetworkStream _tcpStream;
     public IPEndPoint? UdpEndpoint { get; set; }
     public bool IsConnected => _tcp.Connected && UdpEndpoint != null;
 
@@ -51,6 +52,7 @@ public partial class Connection
         _udp = udp;
         _server = server;
         _logger = logger;
+        _tcpStream = _tcp.GetStream();
     }
 
     public void Start(CancellationToken serverToken)
@@ -71,8 +73,7 @@ public partial class Connection
         
         var sendBytes = Serializer.Serialize(packet, true);
         LogSentBytes("TCP", Id, sendBytes);
-        await _tcp.GetStream().WriteAsync(sendBytes, _cts.Token);
-        await _tcp.GetStream().FlushAsync();
+        await _tcpStream.WriteAsync(sendBytes, _cts.Token);
     }
 
     public async Task SendUdp(MindustryPacket packet)
@@ -103,7 +104,7 @@ public partial class Connection
     
     private async Task ReceiveLoop(CancellationToken token)
     {
-        var reader = PipeReader.Create(_tcp.GetStream());
+        var reader = PipeReader.Create(_tcpStream);
 
         try
         {
