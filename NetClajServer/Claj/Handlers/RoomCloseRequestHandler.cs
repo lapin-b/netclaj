@@ -4,7 +4,7 @@ using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class CloseClajRoomRequestHandler: IPacketHandler<RoomCloseRequestPacket>
+public class RoomCloseRequestHandler: IPacketHandler<RoomCloseRequestPacket>
 {
     public async Task HandleAsync(PacketContext context, RoomCloseRequestPacket packet)
     {

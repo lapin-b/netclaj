@@ -6,7 +6,7 @@ using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class CreateClajRoomRequestHandler : IPacketHandler<RoomCreateRequestPacket>
+public class RoomCreateRequestHandler : IPacketHandler<RoomCreateRequestPacket>
 {
     private static readonly Version ServerVersion = new(2, 0, 0);
     

@@ -5,7 +5,7 @@ using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class RawPacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajPayloadWrapping>
+public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajPayloadWrapping>
 {
     public Task HandleAsync(PacketContext context, GamePacket packet)
     {

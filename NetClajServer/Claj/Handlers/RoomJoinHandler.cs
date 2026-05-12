@@ -6,7 +6,7 @@ using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class JoinClajRoomHandler: IPacketHandler<RoomJoinPacket>
+public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>
 {
     public async Task HandleAsync(PacketContext context, RoomJoinPacket packet)
     {

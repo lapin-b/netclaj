@@ -241,6 +241,8 @@ public class MindustryServer
             // handle it.
             if (packet is RegisterUdpPacket registerUdpPacket)
             {
+                // Binding an UDP endpoint to a TCP connection many times is unsupported by design. The original
+                // network engine (`arc.net` in Mindustry) doesn't seem to support this case.
                 if (FrameworkPacketsHandler.TryRegisterUdpEndpoint(this, message.RemoteEndPoint, registerUdpPacket, out var connection))
                 {
                     _udpEndPointsToConnection.TryAdd(message.RemoteEndPoint, connection.Id);
@@ -256,7 +258,7 @@ public class MindustryServer
             )
             {
                 _logger.LogWarning("Endpoint {endpoint} has no corresponding connection", message.RemoteEndPoint);
-                return;
+                continue;
             }
 
             await fromConnection.ProcessDeserializedPacket(packet);
