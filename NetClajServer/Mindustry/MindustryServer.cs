@@ -35,6 +35,7 @@ public class MindustryServer
     // Active connections and rooms management
     public ConcurrentDictionary<int, Connection> Connections { get; } = new();
     public ConcurrentDictionary<long, Room> Rooms { get; } = new();
+    private ConcurrentDictionary<IPEndPoint, int> _udpEndPointsToConnection = new();
     public MindustryServer(
         ClajServerConfiguration config, 
         ILogger<MindustryServer> logger, 
@@ -129,6 +130,11 @@ public class MindustryServer
         // Remove the connection from the registry
         _logger.LogInformation("Connection {ConnectionId} closed. Reason={Reason}", connection.Id, reason);
         Connections.TryRemove(connection.Id, out _);
+        
+        if (connection.UdpEndpoint is { } endpoint)
+        {
+            _udpEndPointsToConnection.TryRemove(endpoint, out _);
+        }
         
         // Remove this client from the room or close it, depending on who it is
         if (connection.ParticipatesInRoomId is { } participatesInRoomId
@@ -237,24 +243,23 @@ public class MindustryServer
             {
                 if (FrameworkPacketsHandler.TryRegisterUdpEndpoint(this, message.RemoteEndPoint, registerUdpPacket, out var connection))
                 {
+                    _udpEndPointsToConnection.TryAdd(message.RemoteEndPoint, connection.Id);
                     await connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
                 }
                 
                 continue;
             }
-            
-            var fromConnection = Connections
-                .Values
-                .FirstOrDefault(c => c.UdpEndpoint != null && c.UdpEndpoint.Equals(message.RemoteEndPoint));
 
-            if (fromConnection != null)
-            {
-                await fromConnection.ProcessDeserializedPacket(packet);
-            }
-            else
+            if (
+                !_udpEndPointsToConnection.TryGetValue(message.RemoteEndPoint, out var connectionId)
+                || !Connections.TryGetValue(connectionId, out var fromConnection)
+            )
             {
                 _logger.LogWarning("Endpoint {endpoint} has no corresponding connection", message.RemoteEndPoint);
+                return;
             }
+
+            await fromConnection.ProcessDeserializedPacket(packet);
         }
         
         _udpListener.Close();
