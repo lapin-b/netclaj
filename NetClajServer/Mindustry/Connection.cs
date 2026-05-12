@@ -220,10 +220,21 @@ public partial class Connection
         }
 
         // Read the next packet length; it fits in an ushort
-        Span<byte> packetLengthBytes = stackalloc byte[2];
-        buffer.Slice(0, 2).CopyTo(packetLengthBytes);
-        var packetLength = BinaryPrimitives.ReadUInt16BigEndian(packetLengthBytes);
 
+        ushort packetLength;
+        var lengthSlice = buffer.Slice(0, 2);
+        if (lengthSlice.IsSingleSegment)
+        {
+            var segment = lengthSlice.First.Span;
+            packetLength = BinaryPrimitives.ReadUInt16BigEndian(segment);
+        }
+        else
+        {
+            Span<byte> packetLengthBytes = stackalloc byte[2];
+            buffer.Slice(0, 2).CopyTo(packetLengthBytes);
+            packetLength = BinaryPrimitives.ReadUInt16BigEndian(packetLengthBytes);
+        }
+        
         long frameSize = 2 + packetLength;
         if (buffer.Length < frameSize)
         {
