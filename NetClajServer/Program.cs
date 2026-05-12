@@ -60,8 +60,8 @@ class Program
             .AddSingleton<FrameworkPacketsHandler>()
             .AddSingleton<GamePacketHandler>()
             
-            .AddSingleton<IPacketHandler<RoomCloseRequestPacket>, RoomCloseRequestHandler>()
-            .AddSingleton<IPacketHandler<RoomCreateRequestPacket>, RoomCreateRequestHandler>()
+            .AddSingleton<IPacketHandler<RoomClosureRequestPacket>, RoomCloseRequestHandler>()
+            .AddSingleton<IPacketHandler<RoomCreationRequestPacket>, RoomCreateRequestHandler>()
             .AddSingleton<IPacketHandler<PingPacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())
             .AddSingleton<IPacketHandler<DiscoverHostPacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())
             .AddSingleton<IPacketHandler<KeepAlivePacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())

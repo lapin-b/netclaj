@@ -49,8 +49,8 @@ public class MindustryServer
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
 
-        MapPacketHandlers<RoomCreateRequestPacket>(provider);
-        MapPacketHandlers<RoomCloseRequestPacket>(provider);
+        MapPacketHandlers<RoomCreationRequestPacket>(provider);
+        MapPacketHandlers<RoomClosureRequestPacket>(provider);
         MapPacketHandlers<PingPacket>(provider);
         MapPacketHandlers<DiscoverHostPacket>(provider);
         MapPacketHandlers<KeepAlivePacket>(provider);

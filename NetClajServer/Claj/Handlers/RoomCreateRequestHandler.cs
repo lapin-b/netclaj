@@ -6,7 +6,7 @@ using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class RoomCreateRequestHandler : IPacketHandler<RoomCreateRequestPacket>
+public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket>
 {
     private readonly ILogger<RoomCreateRequestHandler> _logger;
     private readonly RoomFactory _roomFactory;
@@ -18,13 +18,13 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreateRequestPacket>
         _roomFactory = roomFactory;
     }
 
-    public async Task HandleAsync(PacketContext context, RoomCreateRequestPacket packet)
+    public async Task HandleAsync(PacketContext context, RoomCreationRequestPacket packet)
     {
         var remoteVersion = new Version(packet.Version);
         if (remoteVersion.CompareTo(ServerVersion) < 0)
         {
             // Client version is too old, deny link creation by closing the connection
-            await context.Connection.SendTcp(new ClajMessagePacket()
+            await context.Connection.SendTcp(new ClajTextMessagePacket()
             {
                 Message = "Your CLaJ version is outdated, please update it by reinstalling the 'claj' mod."
             });
@@ -62,7 +62,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreateRequestPacket>
             RoomId = room.Id
         });
 
-        await context.Connection.SendTcp(new ClajMessagePacket
+        await context.Connection.SendTcp(new ClajTextMessagePacket
         {
             Message = "Warning: this CLaJ node is very alpha software although it has been tested. Here be dragons !"
         });

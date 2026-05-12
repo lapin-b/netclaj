@@ -1,24 +1,20 @@
-﻿using NetClajServer.Datastructures;
+﻿namespace NetClajServer.Packets.Claj;
 
-namespace NetClajServer.Packets.Claj;
-
-public class RoomJoinPacket: MindustryPacket
+public class ServerInfoPacket: MindustryPacket
 {
-    public long RoomId { get; set; }
-    
     public const sbyte Type = PacketType.Claj;
-    public const byte Identifier = 6;
+    public const byte Identifier = 20;
 
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
     
     public override void Deserialize(BinaryReader reader)
     {
-        RoomId = reader.ReadInt64BigEndian();
+        throw new NotImplementedException();
     }
 
     public override void Serialize(BinaryWriter writer)
     {
-        writer.WriteInt64BigEndian(RoomId);
+        throw new NotImplementedException();
     }
 }

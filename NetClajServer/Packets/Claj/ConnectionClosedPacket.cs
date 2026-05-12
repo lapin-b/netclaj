@@ -1,6 +1,4 @@
-﻿using NetClajServer.Datastructures;
-
-namespace NetClajServer.Packets.Claj;
+﻿namespace NetClajServer.Packets.Claj;
 
 public class ConnectionClosedPacket: MindustryPacketWithConId
 {

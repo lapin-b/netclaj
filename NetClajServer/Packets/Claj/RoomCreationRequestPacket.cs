@@ -2,23 +2,23 @@
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomJoinPacket: MindustryPacket
+public class RoomCreationRequestPacket: MindustryPacket
 {
-    public long RoomId { get; set; }
+    public string Version { get; set; }
     
     public const sbyte Type = PacketType.Claj;
-    public const byte Identifier = 6;
+    public const byte Identifier = 4;
 
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
     
     public override void Deserialize(BinaryReader reader)
     {
-        RoomId = reader.ReadInt64BigEndian();
+        Version = reader.ReadJavaUtf();
     }
 
     public override void Serialize(BinaryWriter writer)
     {
-        writer.WriteInt64BigEndian(RoomId);
+        writer.WriteJavaUtf(Version);
     }
 }

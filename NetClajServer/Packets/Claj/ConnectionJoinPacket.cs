@@ -6,7 +6,7 @@ public class ConnectionJoinPacket: MindustryPacketWithConId
 {
     public long RoomId { get; set; }
     
-    public const byte Identifier = 2;
+    public const byte Identifier = 0;
 
     public override byte GetPacketIdentifier() => Identifier;
     

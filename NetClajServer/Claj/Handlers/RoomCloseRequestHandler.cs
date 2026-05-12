@@ -4,7 +4,7 @@ using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class RoomCloseRequestHandler: IPacketHandler<RoomCloseRequestPacket>
+public class RoomCloseRequestHandler: IPacketHandler<RoomClosureRequestPacket>
 {
     private readonly ILogger<RoomCloseRequestHandler> _logger;
 
@@ -13,7 +13,7 @@ public class RoomCloseRequestHandler: IPacketHandler<RoomCloseRequestPacket>
         _logger = logger;
     }
 
-    public async Task HandleAsync(PacketContext context, RoomCloseRequestPacket packet)
+    public async Task HandleAsync(PacketContext context, RoomClosureRequestPacket packet)
     {
         if (context.Server.FindConnectionInRooms(context.Connection) is not {} room)
         {

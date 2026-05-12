@@ -92,11 +92,11 @@ public static class Serializer
             ConnectionClosedPacket.Identifier => new ConnectionClosedPacket(),
             ConnectionJoinPacket.Identifier => new ConnectionJoinPacket(),
             ConnectionIdlingPacket.Identifier => new ConnectionIdlingPacket(),
-            RoomCreateRequestPacket.Identifier => new RoomCreateRequestPacket(),
-            RoomCloseRequestPacket.Identifier => new RoomCloseRequestPacket(),
+            RoomCreationRequestPacket.Identifier => new RoomCreationRequestPacket(),
+            RoomClosureRequestPacket.Identifier => new RoomClosureRequestPacket(),
             RoomLinkPacket.Identifier => new RoomLinkPacket(),
             RoomJoinPacket.Identifier => new RoomJoinPacket(),
-            ClajMessagePacket.Identifier => new ClajMessagePacket(),
+            ClajTextMessagePacket.Identifier => new ClajTextMessagePacket(),
             _ => throw new SerializerException(nameof(packetType), SerializerException.FamilyClaj, packetType)
         };
         

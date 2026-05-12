@@ -7,7 +7,7 @@ public class ClajPayloadWrapping: MindustryPacketWithConId
     public bool WrappedPacketIsTcp { get; set; }
     public byte[] Buffer { get; set; } = [];
     
-    public const byte Identifier = 0;
+    public const byte Identifier = 2;
     public override byte GetPacketIdentifier() => Identifier;
 
     protected override void DeserializeInnerPayload(BinaryReader reader)
