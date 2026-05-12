@@ -21,7 +21,6 @@ public class RoomFactory
             roomId = Random.Shared.NextInt64();
         } while (!roomIdExists(roomId));
         
-        //return new Room(roomId, host, _loggerFactory.CreateLogger<Room>());
-        throw new NotImplementedException();
+        return new Room(roomId, host, _loggerFactory.CreateLogger<Room>());
     }
 }

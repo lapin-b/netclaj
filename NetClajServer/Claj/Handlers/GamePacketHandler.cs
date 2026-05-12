@@ -7,12 +7,19 @@ namespace NetClajServer.Claj.Handlers;
 
 public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajPayloadWrapping>
 {
+    private readonly ILogger<GamePacketHandler> _logger;
+
+    public GamePacketHandler(ILogger<GamePacketHandler> logger)
+    {
+        _logger = logger;
+    }
+
     public Task HandleAsync(PacketContext context, GamePacket packet)
     {
         if (context.Connection.ParticipatesInRoomId is not { } participatesInRoomId)
         {
             // Ignore the packet if not participating in a room
-            context.Logger.LogWarning(
+            _logger.LogWarning(
                 "{ConnectionId} is not yet participating in a room and raw packets are already trying to flow through handlers. Dropping",
                 context.Connection.Id
             );
@@ -26,7 +33,7 @@ public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajP
         
         // The room class owns ParticipatesInRoomId management.
         // This should NOT happen.
-        context.Logger.LogError(
+        _logger.LogError(
             "Connection {ConnectionId} says it is participating in room {roomId} but it doesn't exist",
             context.Connection.Id,
             participatesInRoomId
@@ -43,13 +50,13 @@ public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajP
     {
         if (context.Server.FindConnectionInRooms(context.Connection) is not { } room)
         {
-            context.Logger.LogWarning("Connection is partaking in room {roomId} but it doesn't exist", context.Connection.ParticipatesInRoomId);
+            _logger.LogWarning("Connection is partaking in room {roomId} but it doesn't exist", context.Connection.ParticipatesInRoomId);
             return Task.CompletedTask;
         }
 
         if (context.Connection.Id != room.HostConnectionId)
         {
-            context.Logger.LogWarning("Received a Claj wrapping packet not from room host connection. Dropping");
+            _logger.LogWarning("Received a Claj wrapping packet not from room host connection. Dropping");
             return Task.CompletedTask;
         }
 

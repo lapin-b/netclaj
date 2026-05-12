@@ -8,8 +8,16 @@ namespace NetClajServer.Claj.Handlers;
 
 public class RoomCreateRequestHandler : IPacketHandler<RoomCreateRequestPacket>
 {
+    private readonly ILogger<RoomCreateRequestHandler> _logger;
+    private readonly RoomFactory _roomFactory;
     private static readonly Version ServerVersion = new(2, 0, 0);
-    
+
+    public RoomCreateRequestHandler(ILogger<RoomCreateRequestHandler> logger, RoomFactory roomFactory)
+    {
+        _logger = logger;
+        _roomFactory = roomFactory;
+    }
+
     public async Task HandleAsync(PacketContext context, RoomCreateRequestPacket packet)
     {
         var remoteVersion = new Version(packet.Version);
@@ -32,7 +40,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreateRequestPacket>
         )
         {
             // This connection is already a host of a room. Ignore the room creation request
-            context.Logger.LogWarning(
+            _logger.LogWarning(
                 "Connection {ConnectionId} is already hosting a room {roomId}",
                 context.Connection.Id,
                 roomId
@@ -41,14 +49,13 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreateRequestPacket>
             return;
         }
 
-        var room = new Room(context.Connection);
-        do
-        {
-            room.Id = Random.Shared.NextInt64(long.MinValue, long.MaxValue);
-        } while (room.Id == 0 || !context.Server.Rooms.TryAdd(room.Id, room));
-        room.Open();
-
-        context.Logger.LogInformation("Created room {roomId} ({roomIdStr}) for host {connectionId}", room.Id, room.IdString, context.Connection.Id);
+        var room = _roomFactory.Create(
+            context.Connection,
+            id => context.Server.Rooms.ContainsKey(id)
+        );
+        
+        _logger.LogInformation("Created room {roomId} ({roomIdStr}) for host {connectionId}", room.Id, room.IdString, context.Connection.Id);
+        context.Server.Rooms.TryAdd(room.Id, room);
         
         await context.Connection.SendTcp(new RoomLinkPacket
         {

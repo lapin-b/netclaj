@@ -35,7 +35,7 @@ public class MindustryServer
     // Active connections and rooms management
     public ConcurrentDictionary<int, Connection> Connections { get; } = new();
     public ConcurrentDictionary<long, Room> Rooms { get; } = new();
-    private ConcurrentDictionary<IPEndPoint, int> _udpEndPointsToConnection = new();
+    private readonly ConcurrentDictionary<IPEndPoint, int> _udpEndPointsToConnection = new();
     public MindustryServer(
         ClajServerConfiguration config, 
         ILogger<MindustryServer> logger, 
@@ -106,7 +106,6 @@ public class MindustryServer
         {
             Server = this,
             Connection = connection,
-            Logger = _loggerProvider.CreateLogger(packet.GetType().FullName!),
             CancellationToken = _cts.Token,
             IsTcp = packet.IsTcp
         };

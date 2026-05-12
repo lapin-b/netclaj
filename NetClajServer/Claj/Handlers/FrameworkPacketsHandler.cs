@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Mindustry;
 using NetClajServer.Packets.Framework;
@@ -10,6 +11,13 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
     IPacketHandler<DiscoverHostPacket>, 
     IPacketHandler<KeepAlivePacket>
 {
+    private readonly ILogger<FrameworkPacketsHandler> _logger;
+
+    public FrameworkPacketsHandler(ILogger<FrameworkPacketsHandler> logger)
+    {
+        _logger = logger;
+    }
+
     public Task HandleAsync(PacketContext context, PingPacket packet)
     {
         return context.Connection.Send(new PingPacket()

@@ -6,17 +6,24 @@ namespace NetClajServer.Claj.Handlers;
 
 public class RoomCloseRequestHandler: IPacketHandler<RoomCloseRequestPacket>
 {
+    private readonly ILogger<RoomCloseRequestHandler> _logger;
+
+    public RoomCloseRequestHandler(ILogger<RoomCloseRequestHandler> logger)
+    {
+        _logger = logger;
+    }
+
     public async Task HandleAsync(PacketContext context, RoomCloseRequestPacket packet)
     {
         if (context.Server.FindConnectionInRooms(context.Connection) is not {} room)
         {
-            context.Logger.LogWarning("Connection {ConnectionID} is not bound to any room", context.Connection.Id);
+            _logger.LogWarning("Connection {ConnectionID} is not bound to any room", context.Connection.Id);
             return;
         }
 
         if (context.Connection.Id != room.HostConnectionId)
         {
-            context.Logger.LogWarning(
+            _logger.LogWarning(
                 "Connection {ConnectionID} tried to close a room it didn't host ({hostConnectionId} does)", 
                 context.Connection.Id, 
                 room.HostConnectionId
@@ -24,7 +31,7 @@ public class RoomCloseRequestHandler: IPacketHandler<RoomCloseRequestPacket>
             return;
         }
 
-        context.Logger.LogInformation("Closing room {roomId} because host closed it", room.Id);
+        _logger.LogInformation("Closing room {roomId} because host closed it", room.Id);
         await room.Close();
         context.Server.Rooms.TryRemove(room.Id, out _);
     }

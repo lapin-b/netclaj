@@ -25,15 +25,18 @@ public class Room
     public bool IsClosed => Volatile.Read(ref _closingStarted) == 1;
     
     private readonly Connection _host;
+    private readonly ILogger<Room> _logger;
     private readonly ConcurrentDictionary<int, Connection> _players = new();
     
     // State management
     private int _closingStarted = 0;
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
-    public Room(Connection host)
+    public Room(long roomId, Connection host, ILogger<Room> logger)
     {
+        Id = roomId;
         _host = host;
+        _logger = logger;
     }
 
     public void Open()
@@ -112,7 +115,7 @@ public class Room
             if (_players.TryGetValue(clajWrapper.ConnectionId, out var targetConnection) && targetConnection.IsConnected)
             {
                 // The hosts tells us if the packet it sent should be relayed over TCP or UDP
-                context.Logger.LogDebug("{RoomId} H -> P: {HostId} relaying to {targetId} {payload}", Id, HostConnectionId, targetConnection.Id, clajWrapper.Buffer);
+                _logger.LogDebug("{RoomId} H -> P: {HostId} relaying to {targetId} {payload}", Id, HostConnectionId, targetConnection.Id, clajWrapper.Buffer);
                 var bufferToSend = new GamePacket(clajWrapper.Buffer);
                 await targetConnection.Send(bufferToSend, clajWrapper.WrappedPacketIsTcp);
                 await _host.SendTcp(new ConnectionIdlingPacket { ConnectionId = targetConnection.Id });
@@ -120,7 +123,7 @@ public class Room
             else
             {
                 // Somehow this connection didn't exist, yet it still "participates" in this room for the host
-                context.Logger.LogWarning(
+                _logger.LogWarning(
                     "Room {Id}: connection {targetId} doesn't exist or is disconnected, yet is still partaking in the room for the host.",
                     Id,
                     clajWrapper.ConnectionId
@@ -149,7 +152,7 @@ public class Room
                 WrappedPacketIsTcp = context.IsTcp
             };
             
-            context.Logger.LogDebug("P -> H {RoomId}: {sourceId} relaying to {hostId} {payload}", Id, context.Connection.Id, HostConnectionId, Serializer.Serialize((clajWrapped)));
+            _logger.LogDebug("P -> H {RoomId}: {sourceId} relaying to {hostId} {payload}", Id, context.Connection.Id, HostConnectionId, Serializer.Serialize((clajWrapped)));
 
             await _host.SendTcp(clajWrapped);
         }
