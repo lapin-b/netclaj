@@ -9,7 +9,7 @@ public class RoomJoinPacket: MindustryPacket
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 7;
 
-    public override sbyte GetPacketType() => Type;
+    public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
     
     public override void Deserialize(BinaryReader reader)

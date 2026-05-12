@@ -9,7 +9,7 @@ public class RegisterTcpPacket: MindustryPacket
     public const sbyte Type = PacketType.Framework;
     public const byte Identifier = 4;
 
-    public override sbyte GetPacketType() => Type;
+    public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
 
     public override void Deserialize(BinaryReader reader)

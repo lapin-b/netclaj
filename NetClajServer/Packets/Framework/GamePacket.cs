@@ -16,7 +16,7 @@ public class GamePacket: MindustryPacket
         Buffer = buffer;
     }
 
-    public override sbyte GetPacketType() => sbyte.MaxValue;
+    public override sbyte GetPacketFamily() => sbyte.MaxValue;
     public override byte GetPacketIdentifier() => byte.MaxValue;
 
     public override void Deserialize(BinaryReader reader)

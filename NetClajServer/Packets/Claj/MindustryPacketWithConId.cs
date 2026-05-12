@@ -8,7 +8,7 @@ public abstract class MindustryPacketWithConId: MindustryPacket
     
     public const sbyte Type = PacketType.Claj;
 
-    public override sbyte GetPacketType() => Type;
+    public override sbyte GetPacketFamily() => Type;
     public abstract override byte GetPacketIdentifier();
 
     public override void Deserialize(BinaryReader reader)

@@ -9,7 +9,7 @@ public class ClajMessagePacket: MindustryPacket
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 8;
 
-    public override sbyte GetPacketType() => Type;
+    public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
     
     public override void Deserialize(BinaryReader reader)

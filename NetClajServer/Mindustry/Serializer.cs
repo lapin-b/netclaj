@@ -22,7 +22,7 @@ public static class Serializer
         
         if (packet is not GamePacket)
         {
-            binaryWriter.Write(packet.GetPacketType());
+            binaryWriter.Write(packet.GetPacketFamily());
             binaryWriter.Write(packet.GetPacketIdentifier());
         }
 
