@@ -2,7 +2,7 @@
 
 public class ConnectionClosedPacket: MindustryPacketWithConId
 {
-    public ConnectionCloseReason Reason { get; set; }
+    public ArcNetDcReason Reason { get; set; }
     
     public const byte Identifier = 1;
 
@@ -10,7 +10,7 @@ public class ConnectionClosedPacket: MindustryPacketWithConId
 
     protected override void DeserializeInnerPayload(BinaryReader reader)
     {
-        Reason = (ConnectionCloseReason)reader.ReadByte();
+        Reason = (ArcNetDcReason)reader.ReadByte();
     }
 
     protected override void SerializeInnerPayload(BinaryWriter writer)

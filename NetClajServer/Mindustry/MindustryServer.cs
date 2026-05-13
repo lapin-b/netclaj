@@ -124,7 +124,7 @@ public class MindustryServer
         return Rooms.Values.FirstOrDefault(r => r.HostConnectionId == connection.Id || r.HasPlayer(connection));
     }
 
-    public async Task NotifyConnectionClosure(Connection connection, ConnectionCloseReason? reason)
+    public async Task NotifyConnectionClosure(Connection connection, ArcNetDcReason? reason)
     {
         // Remove the connection from the registry
         _logger.LogInformation("Connection {ConnectionId} closed. Reason={Reason}", connection.Id, reason);

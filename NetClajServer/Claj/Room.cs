@@ -91,7 +91,7 @@ public class Room
             await _host.SendTcp(new ConnectionClosedPacket
             {
                 ConnectionId = player.Id, 
-                Reason = ConnectionCloseReason.Closed
+                Reason = ArcNetDcReason.Closed
             });
         }
 
@@ -132,7 +132,7 @@ public class Room
                 await _host.SendTcp(new ConnectionClosedPacket
                 {
                     ConnectionId = clajWrapper.ConnectionId,
-                    Reason = ConnectionCloseReason.Error
+                    Reason = ArcNetDcReason.Error
                 });
             }
         }

@@ -65,7 +65,7 @@ public partial class Connection
         _receiveLoopTask = ReceiveLoop(linked.Token);
     }
 
-    public ValueTask CloseAsync(ConnectionCloseReason reason = ConnectionCloseReason.Closed)
+    public ValueTask CloseAsync(ArcNetDcReason reason = ArcNetDcReason.Closed)
         => new(ExecuteConnectionClosure(reason));
     
     public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
@@ -160,11 +160,11 @@ public partial class Connection
         }
         finally
         {
-            _ = ExecuteConnectionClosure(ConnectionCloseReason.Closed);
+            _ = ExecuteConnectionClosure(ArcNetDcReason.Closed);
         }
     }
 
-    private async Task ExecuteConnectionClosure(ConnectionCloseReason? reason = null)
+    private async Task ExecuteConnectionClosure(ArcNetDcReason? reason = null)
     {
         if (Interlocked.Exchange(ref _closeHasStarted, 1) == 0)
         {

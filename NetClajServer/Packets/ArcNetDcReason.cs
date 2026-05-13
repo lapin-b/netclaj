@@ -1,6 +1,6 @@
 ﻿namespace NetClajServer.Packets;
 
-public enum ConnectionCloseReason
+public enum ArcNetDcReason
 {
     Timeout = 0,
     Closed = 1,
