@@ -7,6 +7,7 @@ using NetClajServer.Claj.Handlers;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Datastructures;
 using NetClajServer.Mindustry;
+using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
 using Serilog;

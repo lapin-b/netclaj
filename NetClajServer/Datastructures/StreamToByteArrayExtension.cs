@@ -1,4 +1,5 @@
-﻿namespace NetClajServer.Datastructures;
+﻿
+namespace NetClajServer.Datastructures;
 
 public static class StreamToByteArrayExtension
 {
@@ -8,4 +9,6 @@ public static class StreamToByteArrayExtension
         stream.CopyTo(tempBuffer);
         return tempBuffer.ToArray();
     }
+
+    public static bool HasBytesRemaining(this Stream stream) => stream.Position < stream.Length;
 }

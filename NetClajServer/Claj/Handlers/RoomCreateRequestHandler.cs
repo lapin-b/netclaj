@@ -10,7 +10,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
 {
     private readonly ILogger<RoomCreateRequestHandler> _logger;
     private readonly RoomFactory _roomFactory;
-    private static readonly Version ServerVersion = new(2, 0, 0);
+    private const int ServerVersion = 2;
 
     public RoomCreateRequestHandler(ILogger<RoomCreateRequestHandler> logger, RoomFactory roomFactory)
     {
@@ -20,16 +20,18 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
 
     public async Task HandleAsync(PacketContext context, RoomCreationRequestPacket packet)
     {
-        var remoteVersion = new Version(packet.Version);
-        if (remoteVersion.CompareTo(ServerVersion) < 0)
+        if (packet.Version != ServerVersion)
         {
-            // Client version is too old, deny link creation by closing the connection
-            await context.Connection.SendTcp(new ClajTextMessagePacket()
-            {
-                Message = "Your CLaJ version is outdated, please update it by reinstalling the 'claj' mod."
-            });
+            var reason = packet.Version < ServerVersion
+                ? ClajConnectionCloseReason.ObsoleteClient
+                : ClajConnectionCloseReason.OutdatedServer;
             
-            await context.Connection.CloseAsync(ConnectionCloseReason.Error);
+            await context.Connection.SendTcp(new RoomClosedPacket()
+            {
+                Reason = reason
+            });
+
+            await context.Connection.CloseAsync();
             return;
         }
 
@@ -39,12 +41,17 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
             && existingRoom.HostConnectionId == context.Connection.Id
         )
         {
-            // This connection is already a host of a room. Ignore the room creation request
+            // This connection is already a host of a room. Send a message
             _logger.LogWarning(
                 "Connection {ConnectionId} is already hosting a room {roomId}",
                 context.Connection.Id,
                 roomId
             );
+
+            await context.Connection.SendTcp(new ClajMessagePacket()
+            {
+                Message = ClajMessages.AlreadyHosting
+            });
 
             return;
         }
