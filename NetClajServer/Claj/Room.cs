@@ -38,20 +38,9 @@ public class Room
         _host = host;
         _logger = logger;
     }
-
-    public void Open()
-    {
-        if (Id == 0)
-        {
-            throw new InvalidOperationException("Room ID is not set");
-        }
-
-        _host.ParticipatesInRoomId = Id;
-    }
     
     public ValueTask Close() => new(ExecuteRoomTeardown()); 
     
-
     public async Task<bool> TryJoinRoom(Connection player)
     {
         if (IsClosed)
@@ -83,7 +72,7 @@ public class Room
         player.ParticipatesInRoomId = null;
         if (!keepOpen)
         {
-            await player.CloseAsync();
+            player.RequestClose(ArcNetDcReason.Closed);
         }
 
         if (notifyHost)
@@ -173,7 +162,7 @@ public class Room
                 {
                     await _host.SendTcp(new ConnectionClosedPacket() { ConnectionId = player.Id });
                     player.ParticipatesInRoomId = null;
-                    await player.CloseAsync();
+                    player.RequestClose(ArcNetDcReason.Closed);
                 }
             }
             finally

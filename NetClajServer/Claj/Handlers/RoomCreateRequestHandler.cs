@@ -31,7 +31,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
                 Reason = reason
             });
 
-            await context.Connection.CloseAsync();
+            context.Connection.RequestClose(ArcNetDcReason.Error);
             return;
         }
 

@@ -91,7 +91,8 @@ public class MindustryServer
 
         foreach (var connection in Connections.Values)
         {
-            await connection.CloseAsync();
+            connection.RequestClose(ArcNetDcReason.Closed);
+            await connection.Closed;
         }
         
         Connections.Clear();

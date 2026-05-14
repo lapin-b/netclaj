@@ -26,7 +26,7 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>
                 packet.RoomId
             );
             
-            await context.Connection.CloseAsync(ArcNetDcReason.Error);
+            context.Connection.RequestClose(ArcNetDcReason.Error);
             return;
         }
 
@@ -53,7 +53,7 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>
         if (!await roomToJoin.TryJoinRoom(context.Connection))
         {
             _logger.LogWarning("{ConnectionId} tried to join a room being dismantled", context.Connection.Id);
-            await context.Connection.CloseAsync(ArcNetDcReason.Error);
+            context.Connection.RequestClose(ArcNetDcReason.Error);
             return;
         }
         

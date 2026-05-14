@@ -36,7 +36,6 @@ public partial class Connection
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Closed => _closedTcs.Task;
     
-    // TODO: Use a concurrent queue
     public Channel<GamePacket> RawPacketsQueue { get; } = Channel.CreateBounded<GamePacket>(
         new BoundedChannelOptions(16)
         {
@@ -64,12 +63,6 @@ public partial class Connection
         // The server or us can request the TCP read loop to be broken
         var linked = CancellationTokenSource.CreateLinkedTokenSource(serverToken, _cts.Token);
         _receiveLoopTask = ReceiveLoop(linked.Token);
-    }
-
-    public ValueTask CloseAsync(ArcNetDcReason reason = ArcNetDcReason.Closed)
-    {
-        RequestClose(reason);
-        return ValueTask.CompletedTask;
     }
     
     public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
@@ -167,8 +160,8 @@ public partial class Connection
             RequestClose(ArcNetDcReason.Error);
         }
     }
-
-    private void RequestClose(ArcNetDcReason reason)
+    
+    public void RequestClose(ArcNetDcReason? reason)
     {
         if (Interlocked.Exchange(ref _closeHasStarted, 1) == 0) return;
 
