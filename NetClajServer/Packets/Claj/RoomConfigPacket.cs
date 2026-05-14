@@ -11,11 +11,11 @@ public class RoomConfigPacket: MindustryPacket
 
     public override void Deserialize(BinaryReader reader)
     {
-        throw new NotImplementedException();
+        //throw new NotImplementedException();
     }
 
     public override void Serialize(BinaryWriter writer)
     {
-        throw new NotImplementedException();
+        //throw new NotImplementedException();
     }
 }

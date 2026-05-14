@@ -1,8 +1,9 @@
-﻿using NetClajServer.Datastructures;
+﻿using System.Buffers;
+using NetClajServer.Datastructures;
 
 namespace NetClajServer.Packets.Framework;
 
-public class PingPacket: MindustryPacket
+public class PingPacket: MindustryPacket, ISequenceDeserializable
 {
     public const sbyte Type = PacketType.Framework;
     public const byte Identifier = 0;
@@ -14,6 +15,11 @@ public class PingPacket: MindustryPacket
         Id = reader.ReadInt32BigEndian();
         IsReply = reader.ReadBoolean();
     }
+    
+    public void Deserialize(ref SequenceReader<byte> reader)
+    {
+        throw new NotImplementedException();
+    }
 
     public override void Serialize(BinaryWriter writer)
     {
@@ -23,4 +29,5 @@ public class PingPacket: MindustryPacket
     
     public int Id { get; set; }
     public bool IsReply { get; set; }
+
 }

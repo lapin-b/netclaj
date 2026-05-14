@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Buffers;
+using System.Runtime.InteropServices;
 using NetClajServer.Datastructures;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
@@ -38,53 +39,75 @@ public static class Serializer
 
         return memoryStream.GetBuffer().AsMemory(0, (int)memoryStream.Length);
     }
-    
+
     public static MindustryPacket Deserialize(ReadOnlyMemory<byte> payload)
     {
-        Stream stream;
-        if (MemoryMarshal.TryGetArray(payload, out var segment) && segment.Array is not null)
-        {
-            stream = new MemoryStream(
-                segment.Array,
-                segment.Offset,
-                segment.Count,
-                false,
-                true
-            );
-        }
-        else
-        {
-            stream = new MemoryStream(payload.ToArray(), writable: false);
-        }
-        
+        return Deserialize(new ReadOnlySequence<byte>(payload));
+    }
+    
+    public static MindustryPacket Deserialize(ReadOnlySequence<byte> payload)
+    {
+        var reader = new SequenceReader<byte>(payload);
+
         // The stream to deserialize has already its packet size cut off if it was TCP. The next byte contains the nature
         // of the payload to come.
-        var binaryReader = new BinaryReader(stream);
-        var packetType = binaryReader.ReadSByte();
+        if (!reader.TryRead(out var packetTypeAsByte))
+        {
+            throw new EndOfStreamException("Missing packet family byte in payload");
+        }
 
+        var packetType = (sbyte)packetTypeAsByte;
+
+        MindustryPacket packetToDeserialize;
         switch (packetType)
         {
             case PacketType.Framework:
-                return DecodeFrameworkPacket(binaryReader);
+                packetToDeserialize = DecodeFrameworkPacket(ref reader);
+                break;
             case PacketType.OldClajVersion:
                 throw new NotImplementedException();
             case PacketType.Claj:
-                return DecodeClajPacket(binaryReader);
+                packetToDeserialize = DecodeClajPacket(ref reader);
+                break;
             default:
                 // If the payload nature can't be recognized, it must be a "raw" Mindustry packet, that is one that will
                 // eventually be relayed.
-                
-                // Seek to zero since the first two bytes were cut off from the payload in TCP transport
-                binaryReader.BaseStream.Seek(0, SeekOrigin.Begin);
-                var packet = new GamePacket();
-                packet.Deserialize(binaryReader);
-                return packet;
+                reader.Rewind(1);
+                packetToDeserialize = new GamePacket()
+                {
+                    // TODO: try to optimize this thing while staying TCP or UDP send friendly
+                    Buffer = new ReadOnlyMemory<byte>(reader.UnreadSequence.ToArray())
+                };
+
+                reader.Advance(reader.Remaining);
+                return packetToDeserialize;
         }
+        
+        // Fast path deserialization while migrating to the SequenceReader-based deserialization 
+        if (packetToDeserialize is ISequenceDeserializable p)
+        {
+            p.Deserialize(ref reader);
+            reader.Advance(reader.Remaining);
+        }
+        else // Fall-back slow path for packets not migrated
+        {
+            var remainingBytes = reader.UnreadSequence.ToArray();
+            using var memoryStream = new MemoryStream(remainingBytes);
+            using var binaryReader = new BinaryReader(memoryStream);
+            packetToDeserialize.Deserialize(binaryReader);
+            reader.Advance(memoryStream.Position);
+        }
+        
+        return packetToDeserialize;
+        
     }
 
-    private static MindustryPacket DecodeClajPacket(BinaryReader reader)
+    private static MindustryPacket DecodeClajPacket(ref SequenceReader<byte> reader)
     {
-        var packetType = reader.ReadByte();
+        if (!reader.TryRead(out var packetType))
+        {
+            throw new EndOfStreamException("Missing CLaJ packet identifier");
+        }
 
         MindustryPacket deserializedPacket = packetType switch
         {
@@ -117,14 +140,16 @@ public static class Serializer
             _ => throw new SerializerException(nameof(packetType), SerializerException.FamilyClaj, packetType)
         };
         
-        deserializedPacket.Deserialize(reader);
         return deserializedPacket;
     }
 
-    private static MindustryPacket DecodeFrameworkPacket(BinaryReader reader)
+    private static MindustryPacket DecodeFrameworkPacket(ref SequenceReader<byte> reader)
     {
         
-        var packetType = reader.ReadByte();
+        if (!reader.TryRead(out var packetType))
+        {
+            throw new EndOfStreamException("Missing arc.net Framework packet identifier");
+        }
 
         MindustryPacket deserializedPacket = packetType switch
         {
@@ -136,7 +161,6 @@ public static class Serializer
             _ => throw new SerializerException(nameof(packetType), SerializerException.FamilyFramework, packetType)
         };
 
-        deserializedPacket.Deserialize(reader);
         return deserializedPacket;
     }
 }

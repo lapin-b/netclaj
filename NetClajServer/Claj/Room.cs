@@ -137,7 +137,8 @@ public class Room
             var clajWrapped = new ClajPayloadWrapping()
             {
                 ConnectionId = context.Connection.Id,
-                Buffer = raw.Buffer,
+                // TODO: use a ReadOnlyMemory
+                Buffer = raw.Buffer.ToArray(),
                 WrappedPacketIsTcp = context.IsTcp
             };
             

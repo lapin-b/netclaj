@@ -1,14 +1,15 @@
-﻿using NetClajServer.Datastructures;
+﻿using System.Buffers;
+using NetClajServer.Datastructures;
 
 namespace NetClajServer.Packets.Framework;
 
 public class GamePacket: MindustryPacket
 {
-    public byte[] Buffer { get; set; } = [];
+    public ReadOnlyMemory<byte> Buffer { get; set; }
 
     public GamePacket()
     {
-        
+        Buffer = new ReadOnlyMemory<byte>();
     }
 
     public GamePacket(byte[] buffer)
@@ -26,6 +27,6 @@ public class GamePacket: MindustryPacket
 
     public override void Serialize(BinaryWriter writer)
     {
-        writer.Write(Buffer);
+        writer.Write(Buffer.Span);
     }
 }
