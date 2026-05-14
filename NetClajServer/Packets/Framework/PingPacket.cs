@@ -23,11 +23,9 @@ public class PingPacket: MindustryPacket, ISequenceDeserializable
     {
         const string packetName = nameof(PingPacket);
 
-        var res = reader.NeedIntBigEndian(packetName, nameof(Id), out int pingId);
-        if (res.IsFailure) return res;
-
-        res = reader.NeedBoolean(packetName, nameof(IsReply), out var isReply);
-        if (res.IsFailure) return res;
+        reader.NeedIntBigEndian(packetName, nameof(Id), out var pingId);
+        reader.NeedBoolean(packetName, nameof(IsReply), out var isReply);
+        if (reader.Result.IsFailure) return reader.Result;
 
         Id = pingId;
         IsReply = isReply;

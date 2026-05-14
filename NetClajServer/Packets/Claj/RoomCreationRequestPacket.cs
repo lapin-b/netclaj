@@ -1,8 +1,5 @@
-﻿using System.Buffers;
-using System.Text;
-using NetClajServer.Claj;
+﻿using System.Text;
 using NetClajServer.Datastructures;
-using NetClajServer.Mindustry;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
@@ -36,30 +33,23 @@ public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
     {
         const string packetName = nameof(RoomCreationRequestPacket);
 
-        var res = reader.NeedShortBigEndian(packetName, "UTF length", out var utflen);
-        if(res.IsFailure) return res;
-
-        res = reader.Require(
-            utflen != 0 || reader.Remaining == 0, packetName,"UTF length",
+        reader.NeedShortBigEndian(packetName, "UTF length", out var utflen);
+        reader.Require(
+            utflen == 0 && reader.Remaining > 0, packetName,"UTF length",
             PacketErrorCode.InvalidValue, "Old client version detected or no more bytes to process"
         );
-        if (res.IsFailure) return res;
-
-        res = reader.NeedIntBigEndian(packetName, nameof(Version), out var version);
-        if (res.IsFailure) return res;
-
-        res = reader.NeedByte(packetName, nameof(RoomType), out var strLen);
-        if (res.IsFailure) return res;
-
-        res = reader.Require(
-            strLen > 16, packetName, nameof(RoomType), 
-            PacketErrorCode.LimitExceeded, "Room type string length is zero or more than 16"
-        );
-        if (res.IsFailure) return res;
-
-        res = reader.TryReadExact(packetName, nameof(RoomType), strLen, out var roomTypeBytes);
-        if (res.IsFailure) return res;
         
+        reader.NeedIntBigEndian(packetName, nameof(Version), out var version);
+        
+        reader.NeedByte(packetName, nameof(RoomType), out var strLen);
+        reader.Require(
+            strLen <= 16, packetName, nameof(RoomType), 
+            PacketErrorCode.LimitExceeded, "String length is zero or more than 16"
+        );
+        reader.TryReadExact(packetName, nameof(RoomType), strLen, out var roomTypeBytes);
+
+        if (reader.Result.IsFailure) return reader.Result;
+
         Version = version;
         RoomType = Encoding.ASCII.GetString(roomTypeBytes);
 

@@ -14,15 +14,21 @@ public ref struct PacketReader
 
     public long Consumed => _reader.Consumed;
     public long Remaining => _reader.Remaining;
+    
+    // Keep the error state internally and skip deserializing the packet if the error is set
+    public PacketResult Result = PacketResult.Ok();
 
     public PacketReader(ref SequenceReader<byte> reader)
     {
         _reader = reader;
     }
 
-    public PacketResult NeedByte(string packetName, string field, out byte value)
+    public void NeedByte(string packetName, string field, out byte value)
     {
-        return TrySimpleReadWith(
+        value = 0;
+        if (Result.IsFailure) return;
+        
+        Result = TrySimpleReadWith(
             packetName,
             field,
             static (ref r, out v) => r.TryRead(out v),
@@ -30,9 +36,12 @@ public ref struct PacketReader
         );
     }
     
-    public PacketResult NeedShortBigEndian(string packetName, string field, out short value)
+    public void NeedShortBigEndian(string packetName, string field, out short value)
     {
-        return TrySimpleReadWith(
+        value = 0;
+        if (Result.IsFailure) return;
+        
+        Result = TrySimpleReadWith(
             packetName,
             field,
             static (ref r, out v) => r.TryReadBigEndian(out v),
@@ -40,9 +49,12 @@ public ref struct PacketReader
         );
     }
     
-    public PacketResult NeedIntBigEndian(string packetName, string field, out int value)
+    public void NeedIntBigEndian(string packetName, string field, out int value)
     {
-        return TrySimpleReadWith(
+        value = 0;
+        if (Result.IsFailure) return;
+        
+        Result = TrySimpleReadWith(
             packetName,
             field,
             static (ref r, out v) => r.TryReadBigEndian(out v),
@@ -50,9 +62,12 @@ public ref struct PacketReader
         );
     }
     
-    public PacketResult NeedLongBigEndian(string packetName, string field, out long value)
+    public void NeedLongBigEndian(string packetName, string field, out long value)
     {
-        return TrySimpleReadWith(
+        value = 0;
+        if (Result.IsFailure) return;
+        
+        Result = TrySimpleReadWith(
             packetName,
             field,
             static (ref r, out v) => r.TryReadBigEndian(out v),
@@ -60,30 +75,30 @@ public ref struct PacketReader
         );
     }
 
-    public PacketResult NeedBoolean(string packetName, string field, out bool value)
+    public void NeedBoolean(string packetName, string field, out bool value)
     {
         value = false;
-        var res = NeedByte(packetName, field, out var rawValue);
-        if (res.IsFailure) return res;
+        NeedByte(packetName, field, out var rawValue);
+        if (Result.IsFailure) return;
 
         value = rawValue != 0;
-        return PacketResult.Ok();
     }
 
-    public PacketResult TryReadExact(string packetName, string field, int count, out ReadOnlySequence<byte> bytes)
+    public void TryReadExact(string packetName, string field, int count, out ReadOnlySequence<byte> bytes)
     {
+        bytes = default;
+        if (Result.IsFailure) return;
+        
         if (!_reader.TryReadExact(count, out bytes))
         {
-            return PacketResult.Err(
+            Result = PacketResult.Err(
                 PacketErrorCode.UnexpectedEof, packetName, field, Consumed,
                 "Not enough bytes in remaining payload"
             );
         }
-
-        return PacketResult.Ok();
     }
 
-    public PacketResult Require(
+    public void Require(
         bool condition,
         string packetName,
         string field,
@@ -91,7 +106,9 @@ public ref struct PacketReader
         string? failureDetail
     )
     {
-        return condition
+        if (Result.IsFailure) return;
+        
+        Result = condition
             ? PacketResult.Ok()
             : PacketResult.Err(failureCode, packetName, field, Consumed, failureDetail);
     }
