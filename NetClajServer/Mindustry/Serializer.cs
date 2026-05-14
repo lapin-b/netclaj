@@ -3,6 +3,7 @@ using NetClajServer.Datastructures;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Mindustry;
 
@@ -85,7 +86,16 @@ public static class Serializer
         // Fast path deserialization while migrating to the SequenceReader-based deserialization 
         if (packetToDeserialize is ISequenceDeserializable p)
         {
-            p.Deserialize(ref reader);
+            var packetReader = new PacketReader(ref reader);
+            var outcome = p.TryDeserialize(ref packetReader);
+
+            if (outcome.IsFailure)
+            {
+                throw new SerializerException(
+                    $"Error while parsing {outcome.PacketName} field {outcome.Field}: {outcome.Code} on byte {outcome.Offset}: {outcome.Detail ?? "<no further details>"}"
+                );
+            }
+            
             reader.Advance(reader.Remaining);
         }
         else // Fall-back slow path for packets not migrated

@@ -12,4 +12,9 @@ public class SerializerException: Exception
     {
         PacketFamily = packetCategory;
     }
+
+    public SerializerException(string message) : base(message)
+    {
+        PacketFamily = "(packet processing)";
+    }
 }
