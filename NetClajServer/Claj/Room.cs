@@ -37,6 +37,8 @@ public class Room
         Id = roomId;
         _host = host;
         _logger = logger;
+
+        host.ParticipatesInRoomId = Id;
     }
     
     public ValueTask Close() => new(ExecuteRoomTeardown()); 
