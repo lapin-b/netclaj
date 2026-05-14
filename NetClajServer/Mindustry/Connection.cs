@@ -115,20 +115,10 @@ public partial class Connection
 
                 while (TryReadFrame(ref buffer, out var payload))
                 {
-                    if (_logger.IsEnabled(LogLevel.Debug))
-                    {
-                        var materializedPayload = payload.ToArray();
-                        LogBytesRecv(Id, materializedPayload);
-                    }
-
+                    DebugRecvBytes(payload);
                     var mindustryPacket = Serializer.Deserialize(payload);
                     mindustryPacket.IsTcp = true;
-
-                    if (mindustryPacket is not KeepAlivePacket)
-                    {
-                        LogPacketTypeRecv(Id, mindustryPacket.GetType().Name);
-                    }
-
+                    DebugRecvPacket(mindustryPacket);
                     await ProcessDeserializedPacket(mindustryPacket);
                 }
 
@@ -243,7 +233,4 @@ public partial class Connection
 
         return true;
     }
-
-    [LoggerMessage(LogLevel.Trace, "{Transport}: {connectionId} Sending {bytes}")]
-    public partial void LogSentBytes(string transport, int connectionId, ReadOnlyMemory<byte> bytes);
 }
