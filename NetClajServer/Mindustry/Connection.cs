@@ -115,10 +115,13 @@ public partial class Connection
 
                 while (TryReadFrame(ref buffer, out var payload))
                 {
-                    var materializedPayload = payload.ToArray();
-                    LogBytesRecv(Id, materializedPayload);
-                    // TODO: Zero-copy deserializer based on a SequenceReader
-                    var mindustryPacket = Serializer.Deserialize(materializedPayload);
+                    if (_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        var materializedPayload = payload.ToArray();
+                        LogBytesRecv(Id, materializedPayload);
+                    }
+
+                    var mindustryPacket = Serializer.Deserialize(payload);
                     mindustryPacket.IsTcp = true;
 
                     if (mindustryPacket is not KeepAlivePacket)
