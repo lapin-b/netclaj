@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using NetClajServer.Datastructures;
+﻿using NetClajServer.Datastructures;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Framework;
@@ -24,10 +23,11 @@ public class PingPacket: MindustryPacket, ISequenceDeserializable
     {
         const string packetName = nameof(PingPacket);
 
-        if (
-            !reader.TryReadIntBigEndian(packetName, nameof(Id), out int pingId, out var err) 
-            || !reader.TryReadBoolean(packetName, nameof(IsReply), out var isReply, out err)
-        ) return err;
+        var res = reader.NeedIntBigEndian(packetName, nameof(Id), out int pingId);
+        if (res.IsFailure) return res;
+
+        res = reader.NeedBoolean(packetName, nameof(IsReply), out var isReply);
+        if (res.IsFailure) return res;
 
         Id = pingId;
         IsReply = isReply;

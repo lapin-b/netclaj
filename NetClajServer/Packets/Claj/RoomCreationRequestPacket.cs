@@ -36,20 +36,29 @@ public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
     {
         const string packetName = nameof(RoomCreationRequestPacket);
 
-        if (!reader.TryReadShortBigEndian(packetName, "UTF length", out var utflen, out var err))
-            return err;
-        
-        if (utflen != 0 || reader.Remaining == 0) 
-            return PacketResult.Err(
-                PacketErrorCode.UnexpectedEof, packetName, "UTF length", 
-                reader.Consumed, "Old client version detected or no more bytes to process");
+        var res = reader.NeedShortBigEndian(packetName, "UTF length", out var utflen);
+        if(res.IsFailure) return res;
 
-        if (!reader.TryReadIntBigEndian(packetName, nameof(Version), out var version, out err)) return err;
-        
-        if (!reader.TryReadByte(packetName, nameof(RoomType), out var strLen, out err))
-            return err with { Detail = "Room type string length is zero or unreadable" };
+        res = reader.Require(
+            utflen != 0 || reader.Remaining == 0, packetName,"UTF length",
+            PacketErrorCode.InvalidValue, "Old client version detected or no more bytes to process"
+        );
+        if (res.IsFailure) return res;
 
-        if (!reader.TryReadExact(packetName, nameof(RoomType), strLen, out var roomTypeBytes, out err)) return err;
+        res = reader.NeedIntBigEndian(packetName, nameof(Version), out var version);
+        if (res.IsFailure) return res;
+
+        res = reader.NeedByte(packetName, nameof(RoomType), out var strLen);
+        if (res.IsFailure) return res;
+
+        res = reader.Require(
+            strLen > 16, packetName, nameof(RoomType), 
+            PacketErrorCode.LimitExceeded, "Room type string length is zero or more than 16"
+        );
+        if (res.IsFailure) return res;
+
+        res = reader.TryReadExact(packetName, nameof(RoomType), strLen, out var roomTypeBytes);
+        if (res.IsFailure) return res;
         
         Version = version;
         RoomType = Encoding.ASCII.GetString(roomTypeBytes);

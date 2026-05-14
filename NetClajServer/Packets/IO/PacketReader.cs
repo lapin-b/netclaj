@@ -20,96 +20,96 @@ public ref struct PacketReader
         _reader = reader;
     }
 
-    public bool TryReadByte(string packetName, string field, out byte value, out PacketResult err)
+    public PacketResult NeedByte(string packetName, string field, out byte value)
     {
         return TrySimpleReadWith(
             packetName,
             field,
             static (ref r, out v) => r.TryRead(out v),
-            out value,
-            out err
+            out value
         );
     }
     
-    public bool TryReadShortBigEndian(string packetName, string field, out short value, out PacketResult err)
+    public PacketResult NeedShortBigEndian(string packetName, string field, out short value)
     {
         return TrySimpleReadWith(
             packetName,
             field,
             static (ref r, out v) => r.TryReadBigEndian(out v),
-            out value,
-            out err
+            out value
         );
     }
     
-    public bool TryReadIntBigEndian(string packetName, string field, out int value, out PacketResult err)
+    public PacketResult NeedIntBigEndian(string packetName, string field, out int value)
     {
         return TrySimpleReadWith(
             packetName,
             field,
             static (ref r, out v) => r.TryReadBigEndian(out v),
-            out value,
-            out err
+            out value
         );
     }
     
-    public bool TryReadLongBigEndian(string packetName, string field, out long value, out PacketResult err)
+    public PacketResult NeedLongBigEndian(string packetName, string field, out long value)
     {
         return TrySimpleReadWith(
             packetName,
             field,
             static (ref r, out v) => r.TryReadBigEndian(out v),
-            out value,
-            out err
+            out value
         );
     }
 
-    public bool TryReadBoolean(string packetName, string field, out bool value, out PacketResult err)
+    public PacketResult NeedBoolean(string packetName, string field, out bool value)
     {
-        if (!TryReadByte(packetName, field, out var rawValue, out err))
-        {
-            value = false;
-            return false;
-        }
+        value = false;
+        var res = NeedByte(packetName, field, out var rawValue);
+        if (res.IsFailure) return res;
 
         value = rawValue != 0;
-        err = PacketResult.Ok();
-
-        return true;
+        return PacketResult.Ok();
     }
 
-    public bool TryReadExact(string packetName, string field, int count, out ReadOnlySequence<byte> bytes, out PacketResult err)
+    public PacketResult TryReadExact(string packetName, string field, int count, out ReadOnlySequence<byte> bytes)
     {
         if (!_reader.TryReadExact(count, out bytes))
         {
-            err = PacketResult.Err(
+            return PacketResult.Err(
                 PacketErrorCode.UnexpectedEof, packetName, field, Consumed,
                 "Not enough bytes in remaining payload"
             );
-            return false;
         }
 
-        err = PacketResult.Ok();
-        return true;
+        return PacketResult.Ok();
+    }
+
+    public PacketResult Require(
+        bool condition,
+        string packetName,
+        string field,
+        PacketErrorCode failureCode,
+        string? failureDetail
+    )
+    {
+        return condition
+            ? PacketResult.Ok()
+            : PacketResult.Err(failureCode, packetName, field, Consumed, failureDetail);
     }
     
     // Template method for reading integers and whatnot off the reader
-    private bool TrySimpleReadWith<T>(
+    private PacketResult TrySimpleReadWith<T>(
         string packetName,
         string field,
         ReadSimpleFunc<T> read,
         [NotNullWhen(true)]
-        out T val,
-        out PacketResult err)
+        out T val)
     {
         if (read(ref _reader, out val))
         {
-            err = PacketResult.Ok();
-            return true;
+            return PacketResult.Ok();
         }
 
         val = default;
-        err = PacketResult.Err(PacketErrorCode.UnexpectedEof, packetName, field, Consumed);
-        return false;
+        return PacketResult.Err(PacketErrorCode.UnexpectedEof, packetName, field, Consumed);
     }
 }
