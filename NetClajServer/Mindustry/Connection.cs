@@ -32,6 +32,7 @@ public partial class Connection
     
     // Making connection closure more robust
     private int _closeHasStarted;
+    private ArcNetDcReason? _closureReason;
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Closed => _closedTcs.Task;
     
@@ -66,7 +67,10 @@ public partial class Connection
     }
 
     public ValueTask CloseAsync(ArcNetDcReason reason = ArcNetDcReason.Closed)
-        => new(ExecuteConnectionClosure(reason));
+    {
+        RequestClose(reason);
+        return ValueTask.CompletedTask;
+    }
     
     public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
 
@@ -160,46 +164,37 @@ public partial class Connection
         }
         finally
         {
-            _ = ExecuteConnectionClosure(ArcNetDcReason.Closed);
+            RequestClose(ArcNetDcReason.Error);
         }
     }
 
-    private async Task ExecuteConnectionClosure(ArcNetDcReason? reason = null)
+    private void RequestClose(ArcNetDcReason reason)
     {
-        if (Interlocked.Exchange(ref _closeHasStarted, 1) == 0)
+        if (Interlocked.Exchange(ref _closeHasStarted, 1) == 0) return;
+
+        _closureReason ??= reason;
+        _cts.Cancel();
+        _tcp.Close();
+
+        _ = Task.Run(FinalizeConnectionClosure);
+    }
+
+    private async Task FinalizeConnectionClosure()
+    {
+        try
         {
-            _logger.LogInformation("{ConnectionID} Closing connection", Id);
-            try
-            {
-                // The first caller does the closure work
-                _cts.Cancel();
-                _tcp.Close();
-                
-                try
-                {
-                    _logger.LogDebug("Waiting for loop break");
-                    await _receiveLoopTask;
-                }
-                catch
-                {
-                    // no-op
-                }
-                
-                _logger.LogInformation("Notifying server of connection termination for cleanup");
-                await _server.NotifyConnectionClosure(this, reason);
-            }
-            finally
-            {
-                UdpEndpoint = null;
-                ParticipatesInRoomId = null;
-                _tcp.Dispose();
-                _cts.Dispose();
-                _closedTcs.TrySetResult();
-            }
+            try { await _receiveLoopTask; }
+            catch { /* no-op */ }
+
+            await _server.NotifyConnectionClosure(this, _closureReason);
         }
-        else
+        finally
         {
-            await _closedTcs.Task;
+            UdpEndpoint = null;
+            ParticipatesInRoomId = null;
+            _tcp.Dispose();
+            _cts.Dispose();
+            _closedTcs.TrySetResult();
         }
     }
 
