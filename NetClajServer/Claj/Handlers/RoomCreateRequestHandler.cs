@@ -10,7 +10,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
 {
     private readonly ILogger<RoomCreateRequestHandler> _logger;
     private readonly RoomFactory _roomFactory;
-    private const int ServerVersion = 2;
+    private const int ServerVersion = 4;
 
     public RoomCreateRequestHandler(ILogger<RoomCreateRequestHandler> logger, RoomFactory roomFactory)
     {
