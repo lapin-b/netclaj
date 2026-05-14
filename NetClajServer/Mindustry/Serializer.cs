@@ -1,5 +1,4 @@
 ﻿using System.Buffers;
-using System.Runtime.InteropServices;
 using NetClajServer.Datastructures;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
@@ -9,7 +8,7 @@ namespace NetClajServer.Mindustry;
 
 public static class Serializer
 {
-    public static Memory<byte> Serialize(MindustryPacket packet, bool isTcp = true)
+    public static ReadOnlyMemory<byte> Serialize(MindustryPacket packet, bool isTcp = true)
     {
         var memoryStream = new MemoryStream(1024);
         var binaryWriter = new BinaryWriter(memoryStream);

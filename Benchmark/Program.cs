@@ -27,7 +27,7 @@ public class Benchmark
     }
     
     [Benchmark]
-    public Memory<byte> BenchmarkSerializer()
+    public ReadOnlyMemory<byte> BenchmarkSerializer()
     {
         return NetClajServer.Mindustry.Serializer.Serialize(new ConnectionJoinPacket
         {
