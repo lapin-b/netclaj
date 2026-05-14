@@ -1,9 +1,13 @@
-﻿using NetClajServer.Claj;
+﻿using System.Buffers;
+using System.Text;
+using NetClajServer.Claj;
 using NetClajServer.Datastructures;
+using NetClajServer.Mindustry;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomCreationRequestPacket: MindustryPacket
+public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
 {
     public int? Version { get; set; }
     public string? RoomType { get; set; }
@@ -26,6 +30,31 @@ public class RoomCreationRequestPacket: MindustryPacket
             Version = reader.ReadInt32BigEndian();
             RoomType = new string(reader.ReadChars(reader.ReadByte()));
         }
+    }
+    
+    public PacketResult TryDeserialize(ref PacketReader reader)
+    {
+        const string packetName = nameof(RoomCreationRequestPacket);
+
+        if (!reader.TryReadShortBigEndian(packetName, "UTF length", out var utflen, out var err))
+            return err;
+        
+        if (utflen != 0 || reader.Remaining == 0) 
+            return PacketResult.Err(
+                PacketErrorCode.UnexpectedEof, packetName, "UTF length", 
+                reader.Consumed, "Old client version detected or no more bytes to process");
+
+        if (!reader.TryReadIntBigEndian(packetName, nameof(Version), out var version, out err)) return err;
+        
+        if (!reader.TryReadByte(packetName, nameof(RoomType), out var strLen, out err))
+            return err with { Detail = "Room type string length is zero or unreadable" };
+
+        if (!reader.TryReadExact(packetName, nameof(RoomType), strLen, out var roomTypeBytes, out err)) return err;
+        
+        Version = version;
+        RoomType = Encoding.ASCII.GetString(roomTypeBytes);
+
+        return PacketResult.Ok();
     }
 
     public override void Serialize(BinaryWriter writer)
