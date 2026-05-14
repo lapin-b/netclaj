@@ -70,6 +70,7 @@ class Program
             .AddSingleton<IPacketHandler<ConnectionClosedPacket>, RoomLeaveHandler>()
             .AddSingleton<IPacketHandler<GamePacket>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
             .AddSingleton<IPacketHandler<ClajPayloadWrapping>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
+            .AddSingleton<IPacketHandler<RoomConfigPacket>, RoomConfigPacketHandler>()
         ;
 
         collection.AddHostedService<ClajServerService>();
