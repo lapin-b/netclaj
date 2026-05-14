@@ -1,4 +1,5 @@
-﻿using NetClajServer.Datastructures;
+﻿using NetClajServer.Claj;
+using NetClajServer.Datastructures;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
@@ -21,7 +22,7 @@ public class RoomConfigPacket: MindustryPacket, ISequenceDeserializable
 
     public override void Deserialize(BinaryReader reader)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 
     public override void Serialize(BinaryWriter writer)
@@ -54,5 +55,17 @@ public class RoomConfigPacket: MindustryPacket, ISequenceDeserializable
         MaxClients = maxClients;
 
         return PacketResult.Ok();
+    }
+
+    public RoomConfiguration IntoRoomConfiguration()
+    {
+        return new RoomConfiguration
+        {
+            IsPublic = IsPublic,
+            IsProtectedByPin = IsProtectedByPin,
+            CanRequestHostState = CanRequestHostState,
+            Pin = Pin,
+            MaxClients = MaxClients
+        };
     }
 }

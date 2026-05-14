@@ -23,6 +23,7 @@ public class Room
     }
     public int HostConnectionId => _host.Id;
     public bool IsClosed => Volatile.Read(ref _closingStarted) == 1;
+    public RoomConfiguration Configuration { get; set; }
     
     private readonly Connection _host;
     private readonly ILogger<Room> _logger;
@@ -37,6 +38,7 @@ public class Room
         Id = roomId;
         _host = host;
         _logger = logger;
+        Configuration = new RoomConfiguration();
 
         host.ParticipatesInRoomId = Id;
     }
