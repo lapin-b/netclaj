@@ -99,6 +99,11 @@ public ref struct PacketReader
         }
     }
 
+    public string DebugRemaining()
+    {
+        return Convert.ToHexString(_reader.UnreadSequence.ToArray());
+    }
+
     public void Require(
         bool condition,
         string packetName,
