@@ -26,6 +26,7 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
             {
                 await context.Connection.SendTcp(new RoomJoinDeniedPacket()
                 {
+                    RoomId = packet.RoomId,
                     Reason = validation
                 });
             }
@@ -60,6 +61,8 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
             {
                 RoomId = roomToJoin.Id
             });
+
+            return;
         }
         
         _logger.LogInformation("{ConnectionId} joining room {roomId}", context.Connection.Id, roomToJoin.Id);
