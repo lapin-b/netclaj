@@ -1,21 +1,11 @@
-﻿namespace NetClajServer.Packets.Claj;
+﻿
+namespace NetClajServer.Packets.Claj;
 
-public class RoomJoinRequestPacket: MindustryPacket
+// Exists for compatibility with older claj client versions
+public class RoomJoinRequestPacket: RoomJoinPacket
 {
-    public const sbyte Type = PacketType.Claj;
-    public const byte Identifier = 8;
-    
-    public override sbyte GetPacketFamily() => Type;
+    public new const sbyte Type = PacketType.Claj;
+    public new const byte Identifier = 8;
 
-    public override byte GetPacketIdentifier() => Identifier;
-
-    public override void Deserialize(BinaryReader reader)
-    {
-        throw new NotImplementedException();
-    }
-
-    public override void Serialize(BinaryWriter writer)
-    {
-        throw new NotImplementedException();
-    }
+    public RoomJoinPacket AsRoomJoinPacket => this;
 }
