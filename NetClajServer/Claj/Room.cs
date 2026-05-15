@@ -13,6 +13,7 @@ namespace NetClajServer.Claj;
 public class Room
 {
     public long Id { get; set; }
+
     public string IdString {
         get
         {
@@ -24,6 +25,7 @@ public class Room
     public int HostConnectionId => _host.Id;
     public bool IsClosed => Volatile.Read(ref _closingStarted) == 1;
     public RoomConfiguration Configuration { get; set; }
+    public byte[] State { get; set; } = [];
     
     private readonly Connection _host;
     private readonly ILogger<Room> _logger;

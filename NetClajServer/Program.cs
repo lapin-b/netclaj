@@ -71,6 +71,7 @@ class Program
             .AddSingleton<IPacketHandler<GamePacket>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
             .AddSingleton<IPacketHandler<ClajPayloadWrapping>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
             .AddSingleton<IPacketHandler<RoomConfigPacket>, RoomConfigPacketHandler>()
+            .AddSingleton<IPacketHandler<RoomStatePacket>, RoomStateHandler>()
         ;
 
         collection.AddHostedService<ClajServerService>();

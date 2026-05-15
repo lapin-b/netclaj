@@ -59,6 +59,7 @@ public class MindustryServer
         MapPacketHandlers<GamePacket>(provider);
         MapPacketHandlers<ClajPayloadWrapping>(provider);
         MapPacketHandlers<RoomConfigPacket>(provider);
+        MapPacketHandlers<RoomStatePacket>(provider);
     }
 
     public void Start()
