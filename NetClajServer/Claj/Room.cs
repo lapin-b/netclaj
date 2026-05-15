@@ -26,6 +26,8 @@ public class Room
     public bool IsClosed => Volatile.Read(ref _closingStarted) == 1;
     public RoomConfiguration Configuration { get; set; }
     public byte[] State { get; set; } = [];
+    public string RoomType { get; private init; }
+    public int PlayersCount => _players.Count;
     
     private readonly Connection _host;
     private readonly ILogger<Room> _logger;
@@ -35,12 +37,13 @@ public class Room
     private int _closingStarted = 0;
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
-    public Room(long roomId, Connection host, ILogger<Room> logger)
+    public Room(long roomId, Connection host, string roomType, ILogger<Room> logger)
     {
         Id = roomId;
         _host = host;
         _logger = logger;
         Configuration = new RoomConfiguration();
+        RoomType = roomType;
 
         host.ParticipatesInRoomId = Id;
     }

@@ -7,7 +7,7 @@ namespace NetClajServer.Packets.Claj;
 public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
 {
     public int? Version { get; set; }
-    public string? RoomType { get; set; }
+    public string RoomType { get; set; } = string.Empty;
     
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 4;

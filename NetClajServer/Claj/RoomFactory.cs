@@ -12,7 +12,7 @@ public class RoomFactory
         _loggerFactory = loggerFactory;
     }
 
-    public Room Create(Connection host, Func<long, bool> roomIdExists)
+    public Room Create(Connection host, string roomType, Func<long, bool> roomIdExists)
     {
         long roomId;
 
@@ -21,6 +21,6 @@ public class RoomFactory
             roomId = Random.Shared.NextInt64();
         } while (roomIdExists(roomId));
         
-        return new Room(roomId, host, _loggerFactory.CreateLogger<Room>());
+        return new Room(roomId, host, roomType, _loggerFactory.CreateLogger<Room>());
     }
 }

@@ -57,7 +57,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
         }
 
         var room = _roomFactory.Create(
-            context.Connection,
+            context.Connection, packet.RoomType,
             id => context.Server.Rooms.ContainsKey(id)
         );
         
