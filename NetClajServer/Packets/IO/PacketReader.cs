@@ -76,6 +76,11 @@ public ref struct PacketReader
         );
     }
 
+    public void NeedRoomId(string packetName, string field, out long value)
+    {
+        NeedLongBigEndian(packetName, field, out value);
+    }
+
     public void NeedBoolean(string packetName, string field, out bool value)
     {
         value = false;
