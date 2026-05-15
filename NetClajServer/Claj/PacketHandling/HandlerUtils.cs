@@ -15,7 +15,7 @@ public static class HandlerUtils
         if (!context.Server.Rooms.TryGetValue(roomToFetch, out var room))
         {
             // This shouldn't happen if the room registry is kept up to date
-            logger.LogError("Room {connectionId} doesn't exist", roomToFetch);
+            logger.LogError("Room {roomId} doesn't exist", roomToFetch);
             return null;
         }
         

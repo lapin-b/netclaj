@@ -15,21 +15,8 @@ public class RoomCloseRequestHandler: IPacketHandler<RoomClosureRequestPacket>
 
     public async Task HandleAsync(PacketContext context, RoomClosureRequestPacket packet)
     {
-        if (context.Server.FindConnectionInRooms(context.Connection) is not {} room)
-        {
-            _logger.LogWarning("Connection {ConnectionID} is not bound to any room", context.Connection.Id);
+        if (HandlerUtils.CheckRoomExistenceAndOwnership(context, _logger) is not { } room)
             return;
-        }
-
-        if (context.Connection.Id != room.HostConnectionId)
-        {
-            _logger.LogWarning(
-                "Connection {ConnectionID} tried to close a room it didn't host ({hostConnectionId} does)", 
-                context.Connection.Id, 
-                room.HostConnectionId
-            );
-            return;
-        }
 
         _logger.LogInformation("Closing room {roomId} because host closed it", room.Id);
         await room.Close();
