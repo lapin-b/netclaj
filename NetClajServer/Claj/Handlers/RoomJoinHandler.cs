@@ -1,4 +1,4 @@
-﻿using System.Net.Mime;
+﻿using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Packets;
@@ -6,7 +6,7 @@ using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
 
-public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>
+public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<RoomJoinRequestPacket>
 {
     private readonly ILogger<RoomJoinHandler> _logger;
 
@@ -17,18 +17,25 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>
 
     public async Task HandleAsync(PacketContext context, RoomJoinPacket packet)
     {
-        // Does the room even exist ?
-        if (!context.Server.Rooms.TryGetValue(packet.RoomId, out var roomToJoin))
+        var isRequest = packet is RoomJoinRequestPacket;
+        var validation = ValidateRequest(context, packet.RoomId, packet.WithPin, packet.Pin, packet.RoomType);
+        
+        if (validation != RoomRejection.Success)
         {
-            _logger.LogWarning(
-                "Connection {connectionId} tried to join a non-existing room ID {roomId}",
-                context.Connection.Id,
-                packet.RoomId
-            );
+            if (isRequest)
+            {
+                await context.Connection.SendTcp(new RoomJoinDeniedPacket()
+                {
+                    Reason = validation
+                });
+            }
             
-            context.Connection.RequestClose(ArcNetDcReason.Error);
+            context.Connection.RequestClose(ArcNetDcReason.Closed);
             return;
         }
+
+        context.Server.Rooms.TryGetValue(packet.RoomId, out var roomToJoin);
+        Debug.Assert(roomToJoin != null, nameof(roomToJoin) + " != null");
 
         // A player can leave a room freely (TryLeaveRoom will return true), but
         // the host can't.
@@ -43,10 +50,18 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>
                 roomToJoin.Id,
                 alreadyJoinedRoom.Id
             );
-
+        
             return;
         }
-
+        
+        if (isRequest)
+        {
+            await context.Connection.SendTcp(new RoomJoinAcceptedPacket()
+            {
+                RoomId = roomToJoin.Id
+            });
+        }
+        
         _logger.LogInformation("{ConnectionId} joining room {roomId}", context.Connection.Id, roomToJoin.Id);
         
         // TryJoinRoom will fail if the room is being dismantled or is closed
@@ -63,4 +78,56 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>
             await roomToJoin.HandlePacket(context, pendingPacket);
         }
     }
+
+    public Task HandleAsync(PacketContext context, RoomJoinRequestPacket packet) => 
+        HandleAsync(context, packet.AsRoomJoinPacket);
+
+    private RoomRejection ValidateRequest(PacketContext context, long roomId, bool reqWithPin, short? reqPin, string reqRoomType)
+    {
+        if (!context.Server.Rooms.TryGetValue(roomId, out var room))
+        {
+            return RoomRejection.NotFound;
+        }
+        
+        // TODO: Ratelimit joins
+
+        if (room.RoomType != reqRoomType)
+        {
+            return RoomRejection.Incompatible;
+        }
+
+        if (room.Configuration.IsProtectedByPin && !reqWithPin)
+        {
+            if (!reqWithPin)
+            {
+                return RoomRejection.PinRequired;
+            }
+
+            if (room.Configuration.Pin != reqPin)
+            {
+                return RoomRejection.InvalidPin;
+            }
+        }
+
+        if (room.Configuration.MaxClients > 0 && room.PlayersCount >= room.Configuration.MaxClients)
+        {
+            return RoomRejection.RoomFull;
+        }
+        
+        return RoomRejection.Success;
+    }
+}
+
+public enum RoomRejection: byte
+{
+    Error,
+    ServerFull,
+    ServerClosing,
+    NotFound,
+    RoomFull,
+    PinRequired,
+    InvalidPin,
+    Incompatible,
+    
+    Success = 255,
 }

@@ -55,6 +55,7 @@ public class MindustryServer
         MapPacketHandlers<DiscoverHostPacket>(provider);
         MapPacketHandlers<KeepAlivePacket>(provider);
         MapPacketHandlers<RoomJoinPacket>(provider);
+        MapPacketHandlers<RoomJoinRequestPacket>(provider);
         MapPacketHandlers<ConnectionClosedPacket>(provider);
         MapPacketHandlers<GamePacket>(provider);
         MapPacketHandlers<ClajPayloadWrapping>(provider);

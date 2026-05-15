@@ -60,18 +60,20 @@ class Program
             // These handlers implement multiple interfaces and should point to the same object
             .AddSingleton<FrameworkPacketsHandler>()
             .AddSingleton<GamePacketHandler>()
+            .AddSingleton<RoomJoinHandler>()
             
             .AddSingleton<IPacketHandler<RoomClosureRequestPacket>, RoomCloseRequestHandler>()
             .AddSingleton<IPacketHandler<RoomCreationRequestPacket>, RoomCreateRequestHandler>()
             .AddSingleton<IPacketHandler<PingPacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())
             .AddSingleton<IPacketHandler<DiscoverHostPacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())
             .AddSingleton<IPacketHandler<KeepAlivePacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())
-            .AddSingleton<IPacketHandler<RoomJoinPacket>, RoomJoinHandler>()
+            .AddSingleton<IPacketHandler<RoomJoinPacket>>(s => s.GetRequiredService<RoomJoinHandler>())
             .AddSingleton<IPacketHandler<ConnectionClosedPacket>, RoomLeaveHandler>()
             .AddSingleton<IPacketHandler<GamePacket>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
             .AddSingleton<IPacketHandler<ClajPayloadWrapping>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
             .AddSingleton<IPacketHandler<RoomConfigPacket>, RoomConfigPacketHandler>()
             .AddSingleton<IPacketHandler<RoomStatePacket>, RoomStateHandler>()
+            .AddSingleton<IPacketHandler<RoomJoinRequestPacket>>(s => s.GetRequiredService<RoomJoinHandler>())
         ;
 
         collection.AddHostedService<ClajServerService>();

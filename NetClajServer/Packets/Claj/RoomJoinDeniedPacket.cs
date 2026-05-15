@@ -1,7 +1,11 @@
-﻿namespace NetClajServer.Packets.Claj;
+﻿using NetClajServer.Claj.Handlers;
+
+namespace NetClajServer.Packets.Claj;
 
 public class RoomJoinDeniedPacket: MindustryPacket
 {
+    public RoomRejection Reason { get; set; }
+    
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 10;
     
