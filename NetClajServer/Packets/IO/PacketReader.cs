@@ -17,6 +17,7 @@ public ref struct PacketReader
     
     // Keep the error state internally and skip deserializing the packet if the error is set
     public PacketResult Result = PacketResult.Ok();
+    public bool ProcessingFailed => Result.IsFailure;
 
     public PacketReader(ref SequenceReader<byte> reader)
     {
@@ -84,7 +85,7 @@ public ref struct PacketReader
         value = rawValue != 0;
     }
 
-    public void TryReadExact(string packetName, string field, int count, out ReadOnlySequence<byte> bytes)
+    public void NeedReadExact(string packetName, string field, int count, out ReadOnlySequence<byte> bytes)
     {
         bytes = default;
         if (Result.IsFailure) return;
@@ -93,7 +94,7 @@ public ref struct PacketReader
         {
             Result = PacketResult.Err(
                 PacketErrorCode.UnexpectedEof, packetName, field, Consumed,
-                "Not enough bytes in remaining payload"
+                $"Not enough bytes in remaining payload ({count} requested, {Remaining} remaining)"
             );
         }
     }

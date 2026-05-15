@@ -46,7 +46,7 @@ public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
             strLen <= 16, packetName, nameof(RoomType), 
             PacketErrorCode.LimitExceeded, "String length is zero or more than 16"
         );
-        reader.TryReadExact(packetName, nameof(RoomType), strLen, out var roomTypeBytes);
+        reader.NeedReadExact(packetName, nameof(RoomType), strLen, out var roomTypeBytes);
 
         if (reader.Result.IsFailure) return reader.Result;
 
