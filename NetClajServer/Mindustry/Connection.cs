@@ -85,6 +85,13 @@ public partial class Connection
         await _udp.SendAsync(sendBytes, UdpEndpoint, _cts.Token);
     }
     
+    public async Task SendUdp(ReadOnlyMemory<byte> packet)
+    {
+        if (Volatile.Read(ref _closeHasStarted) == 1) return;
+        LogSentBytes("UDP", Id, packet);
+        await _udp.SendAsync(packet, UdpEndpoint, _cts.Token);
+    }
+    
     public async Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
     {
         // A player joins the room as a client and will send a few packets that might arrive before the

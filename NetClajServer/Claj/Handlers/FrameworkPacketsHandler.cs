@@ -12,6 +12,7 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
     IPacketHandler<KeepAlivePacket>
 {
     private readonly ILogger<FrameworkPacketsHandler> _logger;
+    private static readonly byte[] HostDiscoveryReply = [0xFC, 0, 0, 0, 4];
 
     public FrameworkPacketsHandler(ILogger<FrameworkPacketsHandler> logger)
     {
@@ -29,7 +30,12 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
 
     public Task HandleAsync(PacketContext context, DiscoverHostPacket packet)
     {
-        return context.Connection.Send(new DiscoverHostPacket(), context.IsTcp);
+        return context.IsTcp
+            // Apparently the discovery packet is sent over UDP ?
+            ? Task.CompletedTask
+            // The Java implementation just sends the bunch of bytes,skipping the "packet identifier" thing
+            // entirely.
+            : context.Connection.SendUdp(HostDiscoveryReply);
     }
 
     public Task HandleAsync(PacketContext context, KeepAlivePacket packet)
