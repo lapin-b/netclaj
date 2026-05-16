@@ -31,7 +31,7 @@ public partial class Connection
     private Task _receiveLoopTask = Task.CompletedTask;
     
     // Making connection closure more robust
-    private int _closeHasStarted;
+    private int _closeHasStarted = 0;
     private ArcNetDcReason? _closureReason;
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Closed => _closedTcs.Task;
@@ -156,7 +156,7 @@ public partial class Connection
     
     public void RequestClose(ArcNetDcReason? reason)
     {
-        if (Interlocked.Exchange(ref _closeHasStarted, 1) == 0) return;
+        if (Interlocked.Exchange(ref _closeHasStarted, 1) != 0) return;
 
         _closureReason ??= reason;
         _cts.Cancel();
