@@ -1,7 +1,11 @@
-﻿namespace NetClajServer.Packets.Claj;
+﻿namespace NetClajServer.Packets.Streaming;
 
 public class StreamChunk: MindustryPacket
 {
+    public int StreamId { get; set; }
+    public bool IsLastChunk { get; set; }
+    public ReadOnlyMemory<byte> Chunk { get; set; }
+    
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 25;
 

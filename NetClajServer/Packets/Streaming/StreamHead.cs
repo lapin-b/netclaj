@@ -1,7 +1,12 @@
-﻿namespace NetClajServer.Packets.Claj;
+﻿namespace NetClajServer.Packets.Streaming;
 
 public class StreamHead: MindustryPacket
 {
+    public int Id { get; set; }
+    public int TotalBytes { get; set; }
+    public byte InnerPacketIdentifier { get; set; }
+    public bool IsCompressed { get; set; }
+    
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 24;
 
