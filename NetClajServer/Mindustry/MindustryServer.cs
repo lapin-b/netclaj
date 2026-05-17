@@ -72,6 +72,9 @@ public class MindustryServer
         _cts = new CancellationTokenSource();
         _tcpListener.Start();
 
+        // TODO: Implement an "unhandled exception" handler on the tasks if they ever go faulted.
+        // They should log what happened and either kill the server or restart the task
+        // https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.continuewith#system-threading-tasks-task-continuewith(system-action((system-threading-tasks-task-system-object))-system-object-system-threading-tasks-taskcontinuationoptions)
         _tcpServerTask = TcpAcceptLoop(_cts.Token);
         _udpServerTask = UdpReceiveLoop(_cts.Token);
     }
