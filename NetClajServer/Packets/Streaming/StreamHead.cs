@@ -1,7 +1,12 @@
-﻿namespace NetClajServer.Packets.Streaming;
+﻿using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
 
-public class StreamHead: MindustryPacket
+namespace NetClajServer.Packets.Streaming;
+
+public class StreamHead: MindustryPacket, ISequenceDeserializable
 {
+    private static int _streamId = 1;
+    
     public int Id { get; set; }
     public int TotalBytes { get; set; }
     public byte InnerPacketIdentifier { get; set; }
@@ -10,16 +15,34 @@ public class StreamHead: MindustryPacket
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 24;
 
+    public StreamHead()
+    {
+        // For now, not being thread-safe is not the end of the world. If this packet were used more often,
+        // consider making the constructor thread-safe.
+        Id = _streamId;
+        _streamId += 1;
+    }
+
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
     
     public override void Deserialize(BinaryReader reader)
     {
-        throw new NotImplementedException();
+        // A stream is only sent from the server to the client
+        throw new NotSupportedException();
+    }
+    
+    public PacketResult TryDeserialize(ref PacketReader reader)
+    {
+        // A stream is only sent from the server to the client
+        throw new NotSupportedException();
     }
 
     public override void Serialize(BinaryWriter writer)
     {
-        throw new NotImplementedException();
+        writer.WriteInt32BigEndian(Id);
+        writer.WriteInt32BigEndian(TotalBytes);
+        writer.Write(InnerPacketIdentifier);
+        writer.Write(IsCompressed);
     }
 }
