@@ -12,8 +12,7 @@ namespace NetClajServer.Mindustry;
 
 public partial class Connection
 {
-    private const int BufferSize = 16;
-    public int Id { get; set; }
+    public int Id { get; }
     public long? ParticipatesInRoomId { get; set; }
 
     private readonly MindustryServer _server;
@@ -37,7 +36,7 @@ public partial class Connection
     public Task Closed => _closedTcs.Task;
     
     public Channel<GamePacket> RawPacketsQueue { get; } = Channel.CreateBounded<GamePacket>(
-        new BoundedChannelOptions(16)
+        new BoundedChannelOptions(Constants.ConnectionRawPacketsBuffer)
         {
             FullMode = BoundedChannelFullMode.DropWrite
         }
