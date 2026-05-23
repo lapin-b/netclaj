@@ -3,6 +3,6 @@
 public interface IStreamablePacket
 {
     public int StreamTotalPacketSize();
-    public Task StreamChunks(TcpStreamSink sink);
+    public ValueTask StreamChunks(TcpStreamSink sink);
     public byte GetPacketIdentifier();
 }

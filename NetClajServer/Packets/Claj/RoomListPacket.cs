@@ -38,7 +38,7 @@ public class RoomListPacket: MindustryPacket, ISequenceDeserializable, IStreamab
         return sizeof(long) + roomsPayloadLength;
     }
    
-    public async Task StreamChunks(TcpStreamSink sink)
+    public async ValueTask StreamChunks(TcpStreamSink sink)
     {
         var b1 = new byte[1];
         var i16 = new byte[2];
