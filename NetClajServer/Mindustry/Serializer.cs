@@ -74,10 +74,9 @@ public static class Serializer
                 // If the payload nature can't be recognized, it must be a "raw" Mindustry packet, that is one that will
                 // eventually be relayed.
                 reader.Rewind(1);
-                packetToDeserialize = new GamePacket()
+                packetToDeserialize = new GamePacket
                 {
-                    // TODO: try to optimize this thing while staying TCP or UDP send friendly
-                    Buffer = new ReadOnlyMemory<byte>(reader.UnreadSequence.ToArray())
+                    Buffer = reader.UnreadSequence
                 };
 
                 reader.Advance(reader.Remaining);

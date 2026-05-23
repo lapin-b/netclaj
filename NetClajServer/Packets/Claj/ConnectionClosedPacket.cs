@@ -1,4 +1,6 @@
-﻿namespace NetClajServer.Packets.Claj;
+﻿using NetClajServer.Packets.IO;
+
+namespace NetClajServer.Packets.Claj;
 
 public class ConnectionClosedPacket: MindustryPacketWithConId
 {
@@ -8,9 +10,10 @@ public class ConnectionClosedPacket: MindustryPacketWithConId
 
     public override byte GetPacketIdentifier() => Identifier;
 
-    protected override void DeserializeInnerPayload(BinaryReader reader)
+    protected override void TryDeserializeInnerPayload(ref PacketReader reader)
     {
-        Reason = (ArcNetDcReason)reader.ReadByte();
+        reader.NeedByte(nameof(ConnectionClosedPacket), nameof(Reason), out var reason);
+        Reason = (ArcNetDcReason)reason;
     }
 
     protected override void SerializeInnerPayload(BinaryWriter writer)

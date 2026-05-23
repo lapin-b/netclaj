@@ -1,4 +1,5 @@
 ﻿using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
@@ -10,9 +11,10 @@ public class ConnectionJoinPacket: MindustryPacketWithConId
 
     public override byte GetPacketIdentifier() => Identifier;
     
-    protected override void DeserializeInnerPayload(BinaryReader reader)
+    protected override void TryDeserializeInnerPayload(ref PacketReader reader)
     {
-        RoomId = reader.ReadInt64BigEndian();
+        reader.NeedLongBigEndian(nameof(ConnectionJoinPacket), nameof(RoomId), out var roomId);
+        RoomId = roomId;
     }
 
     protected override void SerializeInnerPayload(BinaryWriter writer)

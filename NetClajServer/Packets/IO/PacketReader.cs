@@ -104,6 +104,14 @@ public ref struct PacketReader
         }
     }
 
+    public void NeedRest(out ReadOnlySequence<byte> bytes)
+    {
+        bytes = default;
+        if (Result.IsFailure) return;
+        
+        bytes = _reader.UnreadSequence;
+    }
+
     public string DebugRemaining()
     {
         return Convert.ToHexString(_reader.UnreadSequence.ToArray());

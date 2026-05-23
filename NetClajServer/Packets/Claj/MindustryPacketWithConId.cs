@@ -1,8 +1,9 @@
 ﻿using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public abstract class MindustryPacketWithConId: MindustryPacket
+public abstract class MindustryPacketWithConId: MindustryPacket, ISequenceDeserializable
 {
     public int ConnectionId { get; set; }
     
@@ -13,8 +14,7 @@ public abstract class MindustryPacketWithConId: MindustryPacket
 
     public override void Deserialize(BinaryReader reader)
     {
-        ConnectionId = reader.ReadInt32BigEndian();
-        DeserializeInnerPayload(reader);
+        throw new NotSupportedException();
     }
 
     public override void Serialize(BinaryWriter writer)
@@ -22,7 +22,18 @@ public abstract class MindustryPacketWithConId: MindustryPacket
         writer.WriteInt32BigEndian(ConnectionId);
         SerializeInnerPayload(writer);
     }
+    
+    public PacketResult TryDeserialize(ref PacketReader reader)
+    {
+        reader.NeedIntBigEndian(nameof(MindustryPacketWithConId), nameof(ConnectionId), out var cid);
+        TryDeserializeInnerPayload(ref reader);
 
-    protected abstract void DeserializeInnerPayload(BinaryReader reader);
+        if (reader.ProcessingFailed) return reader.Result;
+        ConnectionId = cid;
+
+        return PacketResult.Ok();
+    }
+
+    protected abstract void TryDeserializeInnerPayload(ref PacketReader reader);
     protected abstract void SerializeInnerPayload(BinaryWriter writer);
 }

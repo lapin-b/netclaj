@@ -28,7 +28,7 @@ public class RoomListPacket: MindustryPacket, ISequenceDeserializable, IStreamab
 
     public override void Serialize(BinaryWriter writer)
     {
-        throw new NotImplementedException();
+        // TODO: write an adapter for writing into an array or a Stream
     }
 
     public int StreamTotalPacketSize()

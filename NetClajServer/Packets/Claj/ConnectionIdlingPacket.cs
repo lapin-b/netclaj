@@ -1,4 +1,6 @@
-﻿namespace NetClajServer.Packets.Claj;
+﻿using NetClajServer.Packets.IO;
+
+namespace NetClajServer.Packets.Claj;
 
 public class ConnectionIdlingPacket: MindustryPacketWithConId
 {
@@ -6,7 +8,7 @@ public class ConnectionIdlingPacket: MindustryPacketWithConId
 
     public override byte GetPacketIdentifier() => Identifier;
     
-    protected override void DeserializeInnerPayload(BinaryReader reader)
+    protected override void TryDeserializeInnerPayload(ref PacketReader reader)
     {
         // no-op
     }

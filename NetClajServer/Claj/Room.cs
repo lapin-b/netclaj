@@ -1,4 +1,5 @@
-﻿using System.Buffers.Binary;
+﻿using System.Buffers;
+using System.Buffers.Binary;
 using System.Buffers.Text;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
@@ -10,7 +11,7 @@ using NetClajServer.Packets.Framework;
 
 namespace NetClajServer.Claj;
 
-public class Room
+public partial class Room
 {
     public long Id { get; }
 
@@ -169,8 +170,11 @@ public class Room
             if (_players.TryGetValue(clajWrapper.ConnectionId, out var targetConnection) && targetConnection.IsConnected)
             {
                 // The hosts tells us if the packet it sent should be relayed over TCP or UDP
-                _logger.LogDebug("{RoomId} H -> P: {HostId} relaying to {targetId} {payload}", Id, HostConnectionId, targetConnection.Id, clajWrapper.Buffer);
-                var bufferToSend = new GamePacket(clajWrapper.Buffer);
+                LogHostToClientPayloadRelay(Id, HostConnectionId, targetConnection.Id, clajWrapper.Buffer);
+                var bufferToSend = new GamePacket
+                {
+                    Buffer = clajWrapper.Buffer
+                };
                 await targetConnection.Send(bufferToSend, clajWrapper.WrappedPacketIsTcp);
                 await _host.SendTcp(new ConnectionIdlingPacket { ConnectionId = targetConnection.Id });
             }
@@ -202,12 +206,11 @@ public class Room
             var clajWrapped = new ClajPayloadWrapping()
             {
                 ConnectionId = context.Connection.Id,
-                // TODO: use a ReadOnlyMemory
-                Buffer = raw.Buffer.ToArray(),
+                Buffer = raw.Buffer,
                 WrappedPacketIsTcp = context.IsTcp
             };
             
-            _logger.LogDebug("P -> H {RoomId}: {sourceId} relaying to {hostId} {payload}", Id, context.Connection.Id, HostConnectionId, Serializer.Serialize((clajWrapped)));
+            LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId, Serializer.Serialize((clajWrapped)));
 
             await _host.SendTcp(clajWrapped);
         }
