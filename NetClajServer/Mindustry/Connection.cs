@@ -36,7 +36,7 @@ public partial class Connection
     private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Closed => _closedTcs.Task;
     
-    public Channel<GamePacket> RawPacketsQueue { get; } = Channel.CreateBounded<GamePacket>(
+    public Channel<MaterializedGamePacket> RawPacketsQueue { get; } = Channel.CreateBounded<MaterializedGamePacket>(
         new BoundedChannelOptions(Constants.ConnectionRawPacketsBuffer)
         {
             FullMode = BoundedChannelFullMode.DropWrite
@@ -71,7 +71,7 @@ public partial class Connection
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return;
         
-        var sendBytes = Serializer.Serialize(packet, true);
+        var sendBytes = Serializer.Serialize(packet);
         LogSentBytes("TCP", Id, sendBytes);
         await _tcpStream.WriteAsync(sendBytes, _cts.Token);
     }
@@ -117,7 +117,7 @@ public partial class Connection
         if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null)
         {
             LogNotYetParticipatingInRoom(Id);
-            await RawPacketsQueue.Writer.WriteAsync(raw);
+            await RawPacketsQueue.Writer.WriteAsync(new MaterializedGamePacket(raw));
             // ^ The channel handles excess game packets being written and drops them if needed
         }
         else
@@ -156,8 +156,10 @@ public partial class Connection
         }
         catch (OperationCanceledException e)
         {
-            _logger.LogWarning(e, "Task cancellation caught. This has either bubbled up or was on purpose");
-            // no-op
+            if (!_cts.IsCancellationRequested)
+            {
+                _logger.LogWarning(e, "Task cancellation caught. This must have bubbled up the stack");
+            }
         }
         catch (IOException e)
         {
