@@ -49,19 +49,26 @@ public class MindustryServer
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
 
-        MapPacketHandlers<RoomCreationRequestPacket>(provider);
-        MapPacketHandlers<RoomClosureRequestPacket>(provider);
+        // arc.net handlers
         MapPacketHandlers<PingPacket>(provider);
         MapPacketHandlers<DiscoverHostPacket>(provider);
         MapPacketHandlers<KeepAlivePacket>(provider);
-        MapPacketHandlers<RoomJoinPacket>(provider);
-        MapPacketHandlers<RoomJoinRequestPacket>(provider);
-        MapPacketHandlers<ConnectionClosedPacket>(provider);
-        MapPacketHandlers<GamePacket>(provider);
-        MapPacketHandlers<ClajPayloadWrapping>(provider);
+
+        // Rooms configuration handling
+        MapPacketHandlers<RoomCreationRequestPacket>(provider);
+        MapPacketHandlers<RoomClosureRequestPacket>(provider);
         MapPacketHandlers<RoomConfigPacket>(provider);
         MapPacketHandlers<RoomStatePacket>(provider);
         MapPacketHandlers<RoomListRequestPacket>(provider);
+        
+        // Room joining and quitting
+        MapPacketHandlers<RoomJoinRequestPacket>(provider);
+        MapPacketHandlers<RoomJoinPacket>(provider);
+        MapPacketHandlers<ConnectionClosedPacket>(provider);
+        
+        // Relay
+        MapPacketHandlers<GamePacket>(provider);
+        MapPacketHandlers<ClajPayloadWrapping>(provider);
     }
 
     public void Start()

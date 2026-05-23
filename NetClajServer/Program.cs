@@ -61,20 +61,27 @@ class Program
             .AddSingleton<FrameworkPacketsHandler>()
             .AddSingleton<GamePacketHandler>()
             .AddSingleton<RoomJoinHandler>()
-            
-            .AddSingleton<IPacketHandler<RoomClosureRequestPacket>, RoomCloseRequestHandler>()
-            .AddSingleton<IPacketHandler<RoomCreationRequestPacket>, RoomCreateRequestHandler>()
+
+            // arc.net Framework packets
             .AddSingleton<IPacketHandler<PingPacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())
             .AddSingleton<IPacketHandler<DiscoverHostPacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())
-            .AddSingleton<IPacketHandler<KeepAlivePacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())
-            .AddSingleton<IPacketHandler<RoomJoinPacket>>(s => s.GetRequiredService<RoomJoinHandler>())
-            .AddSingleton<IPacketHandler<ConnectionClosedPacket>, RoomLeaveHandler>()
-            .AddSingleton<IPacketHandler<GamePacket>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
-            .AddSingleton<IPacketHandler<ClajPayloadWrapping>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
+            .AddSingleton<IPacketHandler<KeepAlivePacket>>(s => s.GetRequiredService<FrameworkPacketsHandler>())            
+            
+            // Rooms configuration handling
+            .AddSingleton<IPacketHandler<RoomCreationRequestPacket>, RoomCreateRequestHandler>()
+            .AddSingleton<IPacketHandler<RoomClosureRequestPacket>, RoomCloseRequestHandler>()
             .AddSingleton<IPacketHandler<RoomConfigPacket>, RoomConfigPacketHandler>()
             .AddSingleton<IPacketHandler<RoomStatePacket>, RoomStateHandler>()
-            .AddSingleton<IPacketHandler<RoomJoinRequestPacket>>(s => s.GetRequiredService<RoomJoinHandler>())
             .AddSingleton<IPacketHandler<RoomListRequestPacket>, RoomListRequestHandler>()
+            
+            // Room joining and quitting
+            .AddSingleton<IPacketHandler<RoomJoinRequestPacket>>(s => s.GetRequiredService<RoomJoinHandler>())
+            .AddSingleton<IPacketHandler<RoomJoinPacket>>(s => s.GetRequiredService<RoomJoinHandler>())
+            .AddSingleton<IPacketHandler<ConnectionClosedPacket>, RoomLeaveHandler>()
+            
+            // Relay
+            .AddSingleton<IPacketHandler<GamePacket>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
+            .AddSingleton<IPacketHandler<ClajPayloadWrapping>, GamePacketHandler>(s => s.GetRequiredService<GamePacketHandler>())
         ;
 
         collection.AddHostedService<ClajServerService>();
