@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Buffers.Text;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
@@ -203,16 +202,16 @@ public partial class Room
                 return;
             }
             
-            var clajWrapped = new ClajPayloadWrapping()
+            var clajWrappedGamePacket = new ClajPayloadWrapping
             {
                 ConnectionId = context.Connection.Id,
                 Buffer = raw.Buffer,
                 WrappedPacketIsTcp = context.IsTcp
             };
             
-            LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId, Serializer.Serialize((clajWrapped)));
+            LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId, clajWrappedGamePacket);
 
-            await _host.SendTcp(clajWrapped);
+            await _host.SendTcp(clajWrappedGamePacket);
         }
     }
 
