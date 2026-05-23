@@ -12,7 +12,7 @@ namespace NetClajServer.Claj;
 
 public class Room
 {
-    public long Id { get; set; }
+    public long Id { get; }
 
     public string IdString {
         get
@@ -25,7 +25,16 @@ public class Room
     public int HostConnectionId => _host.Id;
     public bool IsClosed => Volatile.Read(ref _closingStarted) == 1;
     public RoomConfiguration Configuration { get; set; }
-    public byte[] State { get; set; } = [];
+
+    public byte[] State
+    {
+        get;
+        set
+        {
+            field = value;
+            Volatile.Read(ref _stateResponseReceived)?.TrySetResult();
+        }
+    } = [];
     public string RoomType { get; private init; }
     public int PlayersCount => _players.Count;
     
@@ -35,7 +44,10 @@ public class Room
     
     // State management
     private int _closingStarted = 0;
-    private readonly TaskCompletionSource _closedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _roomClosedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    
+    
+    private TaskCompletionSource? _stateResponseReceived;
     
     public Room(long roomId, Connection host, string roomType, ILogger<Room> logger)
     {
@@ -96,8 +108,52 @@ public class Room
         return true;
     }
 
+    public async Task RequestRoomState(int requestTimeoutSeconds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var existing = Volatile.Read(ref _stateResponseReceived);
+        // A room state request is already pending
+        if (existing is not null)
+        {
+            await existing.Task.WaitAsync(ct);
+            return;
+        }
+
+        var createdTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previousTcs = Interlocked.CompareExchange(ref _stateResponseReceived, createdTcs, null);
+
+        if (previousTcs != null)
+        {
+            // We tried to set the completion task source to our own,
+            // it was already set by another task now doing the request
+            await previousTcs.Task.WaitAsync(ct);
+            return;
+        }
+
+        try
+        {
+            await _host.SendTcp(new RoomStateRequestPacket());
+            
+            // This bit is the "timeout" part of requesting the room state to the client. If the request duration elapses,
+            // an OperationCanceledException is thrown and caught in the catch before being rethrown.
+            using var timeoutTokenSource = new CancellationTokenSource(new TimeSpan(0, 0, requestTimeoutSeconds));
+            using var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutTokenSource.Token);
+            await createdTcs.Task.WaitAsync(linkedToken.Token);
+        }
+        catch (Exception e)
+        {
+            createdTcs.TrySetException(e);
+            throw;
+        }
+        finally
+        {
+            // Remove the task completion source if it's our own.
+            Interlocked.CompareExchange(ref _stateResponseReceived, null, createdTcs);
+        }
+    }
+    
     public bool HasPlayer(Connection queryConnection) => _players.ContainsKey(queryConnection.Id);
-    public bool HasPlayer(int connectionId) => _players.ContainsKey(connectionId);
 
     public async Task HandlePacket(PacketContext context, MindustryPacket mindustryPacket)
     {
@@ -179,12 +235,12 @@ public class Room
             {
                 _host.ParticipatesInRoomId = null;
                 _players.Clear();
-                _closedTcs.TrySetResult();
+                _roomClosedTcs.TrySetResult();
             }
         }
         else
         {
-            await _closedTcs.Task;
+            await _roomClosedTcs.Task;
         }
     }
 }
