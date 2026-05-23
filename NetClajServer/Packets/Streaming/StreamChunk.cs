@@ -7,7 +7,6 @@ public class StreamChunk: MindustryPacket
     public int StreamId { get; set; }
     public bool IsLastChunk { get; set; }
     
-    // TODO: Make the chunk a span of bytes
     public ReadOnlyMemory<byte> Chunk { get; set; }
     
     public const sbyte Type = PacketType.Claj;
@@ -25,6 +24,7 @@ public class StreamChunk: MindustryPacket
     {
         writer.WriteInt32BigEndian(StreamId);
         writer.Write(IsLastChunk);
+        writer.WriteInt16BigEndian((short)Chunk.Length);
         writer.Write(Chunk.Span);
     }
 }
