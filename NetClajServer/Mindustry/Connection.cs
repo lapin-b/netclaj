@@ -7,6 +7,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Framework;
+using NetClajServer.Packets.Streaming;
 
 namespace NetClajServer.Mindustry;
 
@@ -89,6 +90,23 @@ public partial class Connection
         if (Volatile.Read(ref _closeHasStarted) == 1) return;
         LogSentBytes("UDP", Id, packet);
         await _udp.SendAsync(packet, UdpEndpoint, _cts.Token);
+    }
+    
+    public async Task SendStreaming(IStreamablePacket packet)
+    {
+        var streamHead = new StreamHead
+        {
+            TotalBytes = packet.StreamTotalPacketSize(),
+            InnerPacketIdentifier = packet.GetPacketIdentifier(),
+            IsCompressed = false
+            // TODO: Implement compression by measuring if the initial payload is compressible or not.
+        };
+
+        await SendTcp(streamHead);
+
+        using var tcpSink = new TcpStreamSink(this, streamHead.Id);
+        await packet.StreamChunks(tcpSink);
+        await tcpSink.Complete(true);
     }
     
     public async Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
