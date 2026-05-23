@@ -5,9 +5,7 @@ namespace NetClajServer.Packets.Streaming;
 
 public class TcpStreamSink: IDisposable
 {
-    //private const int ChunkSize = 2048;
-    // TODO: Uncomment this ^
-    private const int ChunkSize = 64;
+    private const int ChunkSize = 2048;
     
     private readonly Connection _connection;
     private readonly int _streamId;
