@@ -74,6 +74,7 @@ class Program
             .AddSingleton<IPacketHandler<RoomConfigPacket>, RoomConfigPacketHandler>()
             .AddSingleton<IPacketHandler<RoomStatePacket>, RoomStateHandler>()
             .AddSingleton<IPacketHandler<RoomJoinRequestPacket>>(s => s.GetRequiredService<RoomJoinHandler>())
+            .AddSingleton<IPacketHandler<RoomListRequestPacket>, RoomListRequestHandler>()
         ;
 
         collection.AddHostedService<ClajServerService>();

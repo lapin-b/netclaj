@@ -7,7 +7,7 @@ public class StreamHead: MindustryPacket, ISequenceDeserializable
 {
     private static int _streamId = 1;
     
-    public int Id { get; set; }
+    public int Id { get; }
     public int TotalBytes { get; set; }
     public byte InnerPacketIdentifier { get; set; }
     public bool IsCompressed { get; set; }
