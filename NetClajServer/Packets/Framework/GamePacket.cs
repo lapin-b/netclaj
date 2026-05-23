@@ -1,5 +1,4 @@
 ﻿using System.Buffers;
-using NetClajServer.Datastructures;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Framework;
@@ -11,11 +10,6 @@ public class GamePacket: MindustryPacket, ISequenceDeserializable
     public GamePacket()
     {
         Buffer = ReadOnlySequence<byte>.Empty;
-    }
-
-    public GamePacket(byte[] buffer)
-    {
-        Buffer = new ReadOnlySequence<byte>(buffer);
     }
 
     public override sbyte GetPacketFamily() => sbyte.MaxValue;
