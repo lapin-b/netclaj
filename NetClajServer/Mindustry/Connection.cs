@@ -154,8 +154,9 @@ public partial class Connection
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException e)
         {
+            _logger.LogWarning(e, "Task cancellation caught. This has either bubbled up or was on purpose");
             // no-op
         }
         catch (IOException e)
