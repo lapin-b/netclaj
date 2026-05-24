@@ -66,7 +66,7 @@ public static class Serializer
                 packetToDeserialize = DecodeFrameworkPacket(ref reader);
                 break;
             case PacketType.OldClajVersion:
-                throw new NotImplementedException();
+                throw new InvalidOperationException("Old claj client detected");
             case PacketType.Claj:
                 packetToDeserialize = DecodeClajPacket(ref reader);
                 break;
