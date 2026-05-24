@@ -4,12 +4,12 @@ namespace StressTestHarness;
 
 class Program
 {
-    private const int ClientsCount = 50;
-    private const int RoomsCount = 5;
+    private const int ClientsCount = 10;
+    private const int RoomsCount = 1;
 
     static async Task Main(string[] args)
     {
-        MindustryClient.GeneratedPacketsPerSecond = 15;
+        MindustryClient.GeneratedPacketsPerSecond = 5;
         MindustryClient.GeneratedPacketsJitter = .3;
         
         Debug.Assert(ClientsCount >= RoomsCount);
@@ -20,14 +20,13 @@ class Program
         var clients = new List<MindustryClient>();
         var roomIds = new List<long>();
 
-        Console.WriteLine("Connecting");
+        Console.WriteLine("Connecting and handshaking");
         for (var i = 0; i < ClientsCount; i++)
         {
-            clients.Add(new MindustryClient("127.0.0.1", 7000, globalCancel.Token));
+            var client = new MindustryClient("127.0.0.1", 7000, globalCancel.Token);
+            await client.ExecuteHandshake();
+            clients.Add(client);
         }
-
-        Console.WriteLine("Handshaking clients");
-        await Task.WhenAll(clients.Select(c => c.ExecuteHandshake()));
 
         Console.WriteLine("Creating rooms");
         await Task.WhenAll(clients[..RoomsCount].Select(h => h.CreateRoom()));
