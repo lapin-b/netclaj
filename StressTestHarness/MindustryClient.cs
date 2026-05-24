@@ -28,6 +28,7 @@ public class MindustryClient
     private Task _sendLoop = Task.CompletedTask;
     private Task _receiveLoop = Task.CompletedTask;
     private Task _udpReceiveLoop = Task.CompletedTask;
+    private int _isClosing = 0;
     
     // Connection is host of a room
     private List<int> _connectionsInRoom = [];
@@ -63,7 +64,7 @@ public class MindustryClient
 
     public async Task CreateRoom()
     {
-        await SendTcp(BuildCreateRoomPacket(RoomType));
+        await SendTcp(BuildCreateRoomPacket(RoomType), _linkedCancel.Token);
         var roomIdBuffer = await ReadOneFrame();
         if (roomIdBuffer[0] != 0xFC || roomIdBuffer[1] != 0x0B)
             throw new IOException("Expected room");
@@ -71,24 +72,42 @@ public class MindustryClient
         RoomId = BinaryPrimitives.ReadInt64BigEndian(roomIdBuffer.AsSpan()[2..]);
         
         // Room configuration packet
-        await SendTcp(new ReadOnlyMemory<byte>([0xFC, 12, 5, 0xFF, 0xFF, 0, 0]));
+        await SendTcp(new ReadOnlyMemory<byte>([0xFC, 12, 5, 0xFF, 0xFF, 0, 0]), _linkedCancel.Token);
     }
 
     public async Task JoinRoom(long roomId)
     {
         Debug.Assert(IsClient);
         var joinRoom = BuildRoomJoinPacket(roomId);
-        await SendTcp(joinRoom);
+        await SendTcp(joinRoom, _linkedCancel.Token);
     }
 
     public void Run()
     {
-        _sendLoop = SendLoop(_linkedCancel.Token)
-            .ContinueWith(t => Console.WriteLine(t.Exception), TaskContinuationOptions.OnlyOnFaulted);
-        _receiveLoop = TcpReceiveLoop(_linkedCancel.Token)
-            .ContinueWith(t => Console.WriteLine(t.Exception), TaskContinuationOptions.OnlyOnFaulted);
-        _udpReceiveLoop = UdpReceiveLoop(_linkedCancel.Token)
-            .ContinueWith(t => Console.WriteLine(t.Exception), TaskContinuationOptions.OnlyOnFaulted);
+        _sendLoop = SendLoop(_linkedCancel.Token).ContinueWith(LogLoopFailure, TaskContinuationOptions.OnlyOnFaulted);
+        _receiveLoop = TcpReceiveLoop(_linkedCancel.Token).ContinueWith(LogLoopFailure, TaskContinuationOptions.OnlyOnFaulted);
+        _udpReceiveLoop = UdpReceiveLoop(_linkedCancel.Token).ContinueWith(LogLoopFailure, TaskContinuationOptions.OnlyOnFaulted);
+        return;
+
+        void LogLoopFailure(Task task)
+        {
+            Console.WriteLine(task.Exception);
+        }
+    }
+    
+    public void Stop()
+    {
+        if (Interlocked.Exchange(ref _isClosing, 1) != 0) return;
+        
+        Console.WriteLine($"{ConnectionId} cancelling and closing");
+        _ownCancel.Cancel();
+        _client.Close();
+        _udpClient.Close();
+
+        _linkedCancel.Dispose();
+        _ownCancel.Dispose();
+        _client.Dispose();
+        _udpClient.Dispose();
     }
 
     private async Task TcpReceiveLoop(CancellationToken ct)
@@ -164,7 +183,7 @@ public class MindustryClient
 
             if (IsHost || sendOverTcp)
             {
-                await SendTcp(bytes);
+                await SendTcp(bytes, ct);
             }
             else
             {
@@ -174,14 +193,7 @@ public class MindustryClient
             await Task.Delay(CalculateDelay(), ct);
         }
     }
-
-    public void Stop()
-    {
-        _ownCancel.Cancel();
-        _client.Close();
-        _udpClient.Close();
-    }
-
+    
     private async Task<byte[]> ReadOneFrame()
     {
         _linkedCancel.Token.ThrowIfCancellationRequested();
@@ -226,14 +238,14 @@ public class MindustryClient
         }
     }
 
-    private async Task SendTcp(ReadOnlyMemory<byte> rawBytes)
+    private async Task SendTcp(ReadOnlyMemory<byte> rawBytes, CancellationToken ct)
     {
         var header = ArrayPool<byte>.Shared.Rent(2);
         try
         {
             BinaryPrimitives.WriteInt16BigEndian(header.AsSpan()[..2], (short)rawBytes.Length);
-            await _netStream.WriteAsync(header.AsMemory()[..2], _linkedCancel.Token);
-            await _netStream.WriteAsync(rawBytes, _linkedCancel.Token);   
+            await _netStream.WriteAsync(header.AsMemory()[..2], ct);
+            await _netStream.WriteAsync(rawBytes, ct);   
         }
         finally
         {
@@ -295,8 +307,7 @@ public class MindustryClient
 
         return buffer.WrittenMemory;
     }
-
-
+    
     private ReadOnlyMemory<byte> BuildCreateRoomPacket(string roomType)
     {
         // Protocol packet identification,

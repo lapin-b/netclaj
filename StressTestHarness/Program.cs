@@ -46,7 +46,7 @@ class Program
         }
         
         globalCancel.Token.WaitHandle.WaitOne();
-        Console.WriteLine("Closing connections");
+        Console.WriteLine("Closing connections (and it's fine if we can't clean everything I guess)");
         foreach (var client in clients)
         {
             client.Stop();
@@ -57,7 +57,7 @@ class Program
     {
         return (sender, args) =>
         {
-            Console.WriteLine("Cancelling");
+            Console.WriteLine("Global cancelling");
             globalCancel.Cancel();
         };
     }
