@@ -213,16 +213,16 @@ public class MindustryClient
 
     private async Task SendTcp(ReadOnlyMemory<byte> rawBytes)
     {
-        var array = ArrayPool<byte>.Shared.Rent(rawBytes.Length + 2);
+        var header = ArrayPool<byte>.Shared.Rent(2);
         try
         {
-            BinaryPrimitives.WriteInt16BigEndian(array.AsSpan(0, 2), (short)rawBytes.Length);
-            rawBytes.CopyTo(array.AsMemory(2..));
-            await _netStream.WriteAsync(array.AsMemory(..(rawBytes.Length + 2)), _linkedCancel.Token);
+            BinaryPrimitives.WriteInt16BigEndian(header.AsSpan()[..2], (short)rawBytes.Length);
+            await _netStream.WriteAsync(header.AsMemory()[..2], _linkedCancel.Token);
+            await _netStream.WriteAsync(rawBytes, _linkedCancel.Token);   
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(array);
+            ArrayPool<byte>.Shared.Return(header);
         }
     }
 
