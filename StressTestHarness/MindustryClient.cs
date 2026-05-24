@@ -240,40 +240,7 @@ public class MindustryClient
             ArrayPool<byte>.Shared.Return(header);
         }
     }
-
-    private ReadOnlyMemory<byte> BuildCreateRoomPacket(string roomType)
-    {
-        // Protocol packet identification,
-        // Number zero as int (bypass UTF version check on the server),
-        // Protocol version number (short)
-        // Room type length (byte)
-        Span<byte> packetStart = [0xfc, 4, 0, 0, 0, 0, 0, 4, (byte)roomType.Length];
-        
-        var buffer = new ArrayBufferWriter<byte>(9 + roomType.Length);
-        buffer.Write(packetStart);
-        buffer.Write(Encoding.ASCII.GetBytes(roomType));
-
-        return buffer.WrittenMemory;
-    }
-
-    private ReadOnlyMemory<byte> BuildRoomJoinPacket(long roomId)
-    {
-        Span<byte> packetStart = [
-            0xfc, 7, // Packet identifier
-            0, 0, 0, 0, 0, 0, 0, 0, // Room Id
-            0, // with pin
-            0xff, 0xff, // blank pin
-            (byte)RoomType.Length
-        ];
-
-        var buffer = new ArrayBufferWriter<byte>(packetStart.Length + RoomType.Length);
-        BinaryPrimitives.WriteInt64BigEndian(packetStart[2..10], roomId);
-        buffer.Write(packetStart);
-        buffer.Write(Encoding.ASCII.GetBytes(RoomType));
-
-        return buffer.WrittenMemory;
-    }
-
+    
     private ReadOnlyMemory<byte> RandomBullshitGo(int packetSize, int packetContentClass, bool sentOverTcp)
     {
         // If is host:
@@ -329,6 +296,40 @@ public class MindustryClient
         return buffer.WrittenMemory;
     }
 
+
+    private ReadOnlyMemory<byte> BuildCreateRoomPacket(string roomType)
+    {
+        // Protocol packet identification,
+        // Number zero as int (bypass UTF version check on the server),
+        // Protocol version number (short)
+        // Room type length (byte)
+        Span<byte> packetStart = [0xfc, 4, 0, 0, 0, 0, 0, 4, (byte)roomType.Length];
+        
+        var buffer = new ArrayBufferWriter<byte>(9 + roomType.Length);
+        buffer.Write(packetStart);
+        buffer.Write(Encoding.ASCII.GetBytes(roomType));
+
+        return buffer.WrittenMemory;
+    }
+
+    private ReadOnlyMemory<byte> BuildRoomJoinPacket(long roomId)
+    {
+        Span<byte> packetStart = [
+            0xfc, 7, // Packet identifier
+            0, 0, 0, 0, 0, 0, 0, 0, // Room Id
+            0, // with pin
+            0xff, 0xff, // blank pin
+            (byte)RoomType.Length
+        ];
+
+        var buffer = new ArrayBufferWriter<byte>(packetStart.Length + RoomType.Length);
+        BinaryPrimitives.WriteInt64BigEndian(packetStart[2..10], roomId);
+        buffer.Write(packetStart);
+        buffer.Write(Encoding.ASCII.GetBytes(RoomType));
+
+        return buffer.WrittenMemory;
+    }
+    
     private static int CalculateDelay()
     {
         var delay = 1000.0 / GeneratedPacketsPerSecond;
