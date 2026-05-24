@@ -27,6 +27,9 @@ public class MindustryClient
 
     private Task _sendLoop = Task.CompletedTask;
     private Task _receiveLoop = Task.CompletedTask;
+    private Task _udpReceiveLoop = Task.CompletedTask;
+    
+    // Connection is host of a room
     private List<int> _connectionsInRoom = [];
     
     public int ConnectionId { get; private set; }
@@ -82,11 +85,13 @@ public class MindustryClient
     {
         _sendLoop = SendLoop(_linkedCancel.Token)
             .ContinueWith(t => Console.WriteLine(t.Exception), TaskContinuationOptions.OnlyOnFaulted);
-        _receiveLoop = ReceiveLoop(_linkedCancel.Token)
+        _receiveLoop = TcpReceiveLoop(_linkedCancel.Token)
+            .ContinueWith(t => Console.WriteLine(t.Exception), TaskContinuationOptions.OnlyOnFaulted);
+        _udpReceiveLoop = UdpReceiveLoop(_linkedCancel.Token)
             .ContinueWith(t => Console.WriteLine(t.Exception), TaskContinuationOptions.OnlyOnFaulted);
     }
 
-    private async Task ReceiveLoop(CancellationToken ct)
+    private async Task TcpReceiveLoop(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -124,6 +129,16 @@ public class MindustryClient
         }
     }
 
+    private async Task UdpReceiveLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            // That's all the receive loop does. Empty buffers because we don't
+            // care about what's actually transmitted on the line.
+            await _udpClient.ReceiveAsync(ct);
+        }
+    }
+
     private async Task SendLoop(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -143,7 +158,7 @@ public class MindustryClient
             };
 
             var packetContent = Random.Shared.Next(0, 3);
-            var sendOverTcp = true; // Random.Shared.NextDouble() < 0.8;
+            var sendOverTcp = Random.Shared.NextDouble() < 0.75;
 
             var bytes = RandomBullshitGo(packetSize, packetContent, sendOverTcp);
 
@@ -153,7 +168,7 @@ public class MindustryClient
             }
             else
             {
-                //await _udpClient.SendAsync(bytes, ct);
+                await _udpClient.SendAsync(bytes, ct);
             }
 
             await Task.Delay(CalculateDelay(), ct);
