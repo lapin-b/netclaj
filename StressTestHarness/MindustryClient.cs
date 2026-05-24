@@ -330,12 +330,12 @@ public class MindustryClient
         return buffer.WrittenMemory;
     }
     
-    private static int CalculateDelay()
+    private int CalculateDelay()
     {
         var delay = 1000.0 / GeneratedPacketsPerSecond;
         var multiplierSign = Random.Shared.NextDouble() < 0.5 ? 1 : -1;
         var jitterPercent = Random.Shared.NextDouble() * GeneratedPacketsJitter;
-        var jitterDelay = delay + jitterPercent * multiplierSign;
+        var jitterDelay = delay + jitterPercent * delay * multiplierSign;
 
         return (int)Math.Floor(jitterDelay);
     }
