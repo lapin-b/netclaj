@@ -10,9 +10,9 @@ namespace StressTestHarness;
 public class MindustryClient
 {
     private const string RoomType = "Randustry";
-    private const int GeneratedPacketsPerSecond = 100;
-    private const double GeneratedPacketsJitter = .3;
-    private static readonly byte[] PatternFill = "Pattern"u8.ToArray();
+    public static int GeneratedPacketsPerSecond = 15;
+    public static double GeneratedPacketsJitter = .3;
+    private static readonly byte[] PatternFill = "Random bullshit go !"u8.ToArray();
     private static readonly int PatternFillLength = PatternFill.Length;
 
     private readonly TcpClient _client;
@@ -289,7 +289,7 @@ public class MindustryClient
             case 0: // Zeros
                 buffer.Advance(packetSize);
                 break;
-            case 0 or 1: // Pattern fill
+            case 1: // Pattern fill
                 var bytesRemaining = packetSize;
                 for (; bytesRemaining >= PatternFillLength; bytesRemaining -= PatternFillLength)
                 {
@@ -314,9 +314,9 @@ public class MindustryClient
         return buffer.WrittenMemory;
     }
 
-    private int CalculateDelay()
+    private static int CalculateDelay()
     {
-        const double delay = 1000.0 / GeneratedPacketsPerSecond;
+        var delay = 1000.0 / GeneratedPacketsPerSecond;
         var multiplierSign = Random.Shared.NextDouble() < 0.5 ? 1 : -1;
         var jitterPercent = Random.Shared.NextDouble() * GeneratedPacketsJitter;
         var jitterDelay = delay + jitterPercent * multiplierSign;

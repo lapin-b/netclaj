@@ -4,11 +4,14 @@ namespace StressTestHarness;
 
 class Program
 {
-    private const int ClientsCount = 200;
-    private const int RoomsCount = 10;
+    private const int ClientsCount = 50;
+    private const int RoomsCount = 5;
 
     static async Task Main(string[] args)
     {
+        MindustryClient.GeneratedPacketsPerSecond = 15;
+        MindustryClient.GeneratedPacketsJitter = .3;
+        
         Debug.Assert(ClientsCount >= RoomsCount);
         
         var globalCancel = new CancellationTokenSource();
