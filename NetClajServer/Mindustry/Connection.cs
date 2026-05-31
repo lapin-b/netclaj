@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
+using Microsoft.IO;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Framework;
 using NetClajServer.Packets.Streaming;
@@ -13,6 +14,8 @@ namespace NetClajServer.Mindustry;
 
 public partial class Connection
 {
+    private static RecyclableMemoryStreamManager _memoryStreamManager = new();
+    
     public int Id { get; }
     public long? ParticipatesInRoomId { get; set; }
 
@@ -70,8 +73,11 @@ public partial class Connection
     public async Task SendTcp(MindustryPacket packet)
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return;
+
+        await using var memoryStream = _memoryStreamManager.GetStream();
+        await using var binaryWriter = new BinaryWriter(memoryStream);
         
-        var sendBytes = Serializer.Serialize(packet);
+        var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter);
         LogSentBytes("TCP", Id, sendBytes);
         await _tcpStream.WriteAsync(sendBytes, _cts.Token);
     }
@@ -80,7 +86,10 @@ public partial class Connection
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return;
         
-        var sendBytes = Serializer.Serialize(packet, false);
+        await using var memoryStream = _memoryStreamManager.GetStream();
+        await using var binaryWriter = new BinaryWriter(memoryStream);
+        
+        var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter, false);
         LogSentBytes("UDP", Id, sendBytes);
         await _udp.SendAsync(sendBytes, UdpEndpoint, _cts.Token);
     }

@@ -10,11 +10,8 @@ namespace NetClajServer.Mindustry;
 
 public static class Serializer
 {
-    public static ReadOnlyMemory<byte> Serialize(MindustryPacket packet, bool isTcp = true)
+    public static ReadOnlyMemory<byte> Serialize(MindustryPacket packet, MemoryStream memoryStream, BinaryWriter binaryWriter, bool isTcp = true)
     {
-        var memoryStream = new MemoryStream(1024);
-        var binaryWriter = new BinaryWriter(memoryStream);
-
         // If the packet is sent over TCP, we should skip two bytes that will later receive
         // the payload length of this packet. UDP doesn't care about that.
         if (isTcp)
