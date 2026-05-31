@@ -167,6 +167,11 @@ public class MindustryClient
             await Task.Delay(1000, ct);
         }
 
+        if (GeneratedPacketsPerSecond == 0)
+        {
+            return;
+        }
+
         while (!ct.IsCancellationRequested)
         {
             var packetSize = Random.Shared.Next(0, 101) switch
