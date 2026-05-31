@@ -82,6 +82,18 @@ public partial class Connection
         await _tcpStream.WriteAsync(sendBytes, _cts.Token);
     }
 
+    public async Task SendTcp(List<MindustryPacket> packets)
+    {
+        if (Volatile.Read(ref _closeHasStarted) == 1) return;
+
+        await using var memoryStream = _memoryStreamManager.GetStream();
+        await using var binaryWriter = new BinaryWriter(memoryStream);
+        
+        var sendBytes = Serializer.Serialize(packets, memoryStream, binaryWriter);
+        LogSentBytes("TCP bulk", Id, sendBytes);
+        await _tcpStream.WriteAsync(sendBytes, _cts.Token);
+    }
+
     public async Task SendUdp(MindustryPacket packet)
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return;
