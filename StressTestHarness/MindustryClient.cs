@@ -274,7 +274,7 @@ public class MindustryClient
 
         if (IsHost)
         {
-            var destination = _connectionsInRoom[Random.Shared.Next(0, _connectionsInRoom.Count)];
+            var destination = _connectionsInRoom[Random.Shared.Next(_connectionsInRoom.Count)];
             
             Span<byte> packetPreamble = [0xFC, 2, 0, 0, 0, 0, (byte)(sentOverTcp ? 1 : 0)];
             BinaryPrimitives.WriteInt32BigEndian(packetPreamble[2..6], destination);
