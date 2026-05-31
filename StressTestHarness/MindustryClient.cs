@@ -187,7 +187,7 @@ public class MindustryClient
             };
 
             var packetContent = Random.Shared.Next(0, 3);
-            var sendOverTcp = Random.Shared.NextDouble() < 0.75;
+            var sendOverTcp = Random.Shared.NextDouble() < 0.66;
 
             var bytes = RandomBullshitGo(packetSize, packetContent, sendOverTcp);
 
