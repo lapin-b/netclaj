@@ -27,12 +27,12 @@ public class Benchmark
     }
     
     [Benchmark]
-    public ReadOnlyMemory<byte> BenchmarkSerializer()
+    public void BenchmarkSerializer()
     {
-        return NetClajServer.Mindustry.Serializer.Serialize(new ConnectionJoinPacket
-        {
-            RoomId = long.MaxValue,
-            ConnectionId = int.MaxValue
-        });
+        // return NetClajServer.Mindustry.Serializer.Serialize(new ConnectionJoinPacket
+        // {
+        //     RoomId = long.MaxValue,
+        //     ConnectionId = int.MaxValue
+        // });
     }
 }
