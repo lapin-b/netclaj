@@ -169,7 +169,7 @@ public partial class Room
             if (_players.TryGetValue(clajWrapper.ConnectionId, out var targetConnection) && targetConnection.IsConnected)
             {
                 // The hosts tells us if the packet it sent should be relayed over TCP or UDP
-                LogHostToClientPayloadRelay(Id, HostConnectionId, targetConnection.Id, clajWrapper.Buffer);
+                LogHostToClientPayloadRelay(Id, HostConnectionId, targetConnection.Id);
                 var bufferToSend = new GamePacket
                 {
                     Buffer = clajWrapper.Buffer
@@ -209,7 +209,7 @@ public partial class Room
                 WrappedPacketIsTcp = context.IsTcp
             };
             
-            LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId, clajWrappedGamePacket);
+            LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId);
 
             await _host.SendTcp(clajWrappedGamePacket);
         }
