@@ -46,6 +46,10 @@ public partial class Room
     private int _closingStarted = 0;
     private readonly TaskCompletionSource _roomClosedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
+    // Sending idle connection notifications continuously
+    private Task? _idleConnectionSendTask;
+    private CancellationTokenSource? _idleConnectionSendCts;
+    
     
     private TaskCompletionSource? _stateResponseReceived;
     
@@ -78,6 +82,12 @@ public partial class Room
             RoomId = Id
         });
 
+        if (!_players.IsEmpty && _idleConnectionSendTask == null)
+        {
+            _idleConnectionSendCts = new CancellationTokenSource();
+            _idleConnectionSendTask = Task.Run(SendIdleConnectionNotifications);
+        }
+
         return true;
     }
 
@@ -103,6 +113,12 @@ public partial class Room
                 ConnectionId = player.Id, 
                 Reason = ArcNetDcReason.Closed
             });
+        }
+        
+        if(_players.IsEmpty && _idleConnectionSendTask != null)
+        {
+            _idleConnectionSendCts!.Cancel();
+            await _idleConnectionSendTask;
         }
 
         return true;
@@ -175,7 +191,6 @@ public partial class Room
                     Buffer = clajWrapper.Buffer
                 };
                 await targetConnection.Send(bufferToSend, clajWrapper.WrappedPacketIsTcp);
-                await _host.SendTcp(new ConnectionIdlingPacket { ConnectionId = targetConnection.Id });
             }
             else
             {
@@ -215,6 +230,20 @@ public partial class Room
         }
     }
 
+    private async Task SendIdleConnectionNotifications()
+    {
+        ArgumentNullException.ThrowIfNull(_idleConnectionSendCts);
+        while (!_idleConnectionSendCts.IsCancellationRequested)
+        {
+            var packets = _players.Values
+                .Select(MindustryPacket (c) => new ConnectionIdlingPacket { ConnectionId = c.Id })
+                .ToList();
+
+            await _host.SendTcp(packets);
+            await Task.Delay(250);
+        }
+    }
+
     private async Task ExecuteRoomTeardown()
     {
         if (Interlocked.Exchange(ref _closingStarted, 1) == 0)
@@ -232,6 +261,9 @@ public partial class Room
                     player.ParticipatesInRoomId = null;
                     player.RequestClose(ArcNetDcReason.Closed);
                 }
+
+                _idleConnectionSendCts?.Cancel();
+                if (_idleConnectionSendTask != null) await _idleConnectionSendTask;
             }
             finally
             {
