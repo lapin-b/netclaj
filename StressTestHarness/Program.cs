@@ -90,7 +90,7 @@ class Program
                 Clients.Remove(connection);
                 Clients.Add(newConnection);
 
-                await Task.Delay(Random.Shared.Next(25, 100), ct);
+                await Task.Delay(Random.Shared.Next(200, 300), ct);
             }
         }
     }
