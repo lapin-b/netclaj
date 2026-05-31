@@ -174,6 +174,11 @@ public class MindustryClient
 
         while (!ct.IsCancellationRequested)
         {
+            while (IsHost && _connectionsInRoom.Count == 0)
+            {
+                await Task.Delay(1000, ct);
+            }
+            
             var packetSize = Random.Shared.Next(0, 101) switch
             {
                 < 70 => Random.Shared.Next(24, 97),
