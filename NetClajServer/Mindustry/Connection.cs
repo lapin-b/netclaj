@@ -134,7 +134,7 @@ public partial class Connection
         await tcpSink.Complete(true);
     }
     
-    public async Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
+    public Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
     {
         _metrics.IncrementIncomingPacketsProcessed();
 
@@ -144,13 +144,12 @@ public partial class Connection
         if (mindustryPacket is GamePacket raw && ParticipatesInRoomId == null)
         {
             LogNotYetParticipatingInRoom(Id);
-            await RawPacketsQueue.Writer.WriteAsync(new MaterializedGamePacket(raw));
+            RawPacketsQueue.Writer.TryWrite(new MaterializedGamePacket(raw));
+            return Task.CompletedTask;
             // ^ The channel handles excess game packets being written and drops them if needed
         }
-        else
-        {
-            await _server.HandleMindustryPacket(this, mindustryPacket);
-        }
+
+        return _server.HandleMindustryPacket(this, mindustryPacket);
     }
     
     private async Task ReceiveLoop(CancellationToken token)

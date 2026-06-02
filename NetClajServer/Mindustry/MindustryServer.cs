@@ -113,7 +113,7 @@ public class MindustryServer
         cts.Dispose();
     }
 
-    public async Task HandleMindustryPacket(Connection connection, MindustryPacket packet)
+    public Task HandleMindustryPacket(Connection connection, MindustryPacket packet)
     {
         if (_cts is null) throw new InvalidOperationException("Server is not started");
 
@@ -127,11 +127,11 @@ public class MindustryServer
         
         if (_router.TryGetValue(packet.GetType(), out var handler))
         {
-            await handler(context, packet);
-            return;
+            return handler(context, packet);
         }
         
         _logger.LogDebug("No handler for {packetType}", packet.GetType().Name);
+        return Task.CompletedTask;
     }
 
     public Room? FindConnectionInRooms(Connection connection)
