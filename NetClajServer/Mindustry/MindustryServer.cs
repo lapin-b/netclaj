@@ -136,7 +136,10 @@ public class MindustryServer
 
     public Room? FindConnectionInRooms(Connection connection)
     {
-        return Rooms.Values.FirstOrDefault(r => r.HostConnectionId == connection.Id || r.HasPlayer(connection));
+        return connection.ParticipatesInRoomId is { } participatesInRoomId 
+               && Rooms.TryGetValue(participatesInRoomId, out var room) 
+            ? room
+            : null;        
     }
 
     public async Task NotifyConnectionClosure(Connection connection, ArcNetDcReason? reason)
