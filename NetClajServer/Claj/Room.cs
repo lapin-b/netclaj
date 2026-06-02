@@ -49,7 +49,7 @@ public partial class Room
     // Sending idle connection notifications continuously
     private Task? _idleConnectionSendTask;
     private CancellationTokenSource? _idleConnectionSendCts;
-    
+    private readonly List<MindustryPacket> _preparedIdlingPackets = [];
     
     private TaskCompletionSource? _stateResponseReceived;
     
@@ -75,6 +75,7 @@ public partial class Room
         
         _players.TryAdd(player.Id, player);
         player.ParticipatesInRoomId = Id;
+        _preparedIdlingPackets.Add(new ConnectionIdlingPacket { ConnectionId = player.Id });
 
         await _host.SendTcp(new ConnectionJoinPacket
         {
@@ -101,6 +102,8 @@ public partial class Room
         
         _players.TryRemove(player.Id, out _);
         player.ParticipatesInRoomId = null;
+        _preparedIdlingPackets.RemoveAll(c => ((ConnectionIdlingPacket)c).ConnectionId == player.Id);
+        
         if (!keepOpen)
         {
             player.RequestClose(ArcNetDcReason.Closed);
@@ -235,11 +238,7 @@ public partial class Room
         ArgumentNullException.ThrowIfNull(_idleConnectionSendCts);
         while (!_idleConnectionSendCts.IsCancellationRequested)
         {
-            var packets = _players.Values
-                .Select(MindustryPacket (c) => new ConnectionIdlingPacket { ConnectionId = c.Id })
-                .ToList();
-
-            await _host.SendTcp(packets);
+            await _host.SendTcp(_preparedIdlingPackets);
             await Task.Delay(250);
         }
     }
@@ -269,6 +268,7 @@ public partial class Room
             {
                 _host.ParticipatesInRoomId = null;
                 _players.Clear();
+                _preparedIdlingPackets.Clear();
                 _roomClosedTcs.TrySetResult();
             }
         }
