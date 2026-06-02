@@ -30,38 +30,30 @@ public class RoomJoinPacket: MindustryPacket, ISequenceDeserializable
 
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        const string packetName = nameof(RoomJoinRequestPacket);
-        bool withPin;
-        short? pin;
-        ReadOnlySequence<byte> roomTypeBytes;
-        
-        reader.NeedLongBigEndian(packetName, nameof(RoomId), out var roomId);
+        reader.WithPacketName(nameof(RoomJoinRequestPacket));
+
+        RoomId = reader.NeedRoomId(nameof(RoomId));
         
         // Compatibility with older versions of the client. This will only work if the room doesn't have a pin set.
         if (reader.Remaining > 0)
         {
-            reader.NeedBoolean(packetName, nameof(WithPin), out withPin);
-            reader.NeedShortBigEndian(packetName, nameof(Pin), out var tempPin);
-            reader.NeedByte(packetName, "room type length", out var roomLength);
-            reader.Require(roomLength < 16, packetName, nameof(RoomType), PacketErrorCode.LimitExceeded, $"Was to read {roomLength} bytes");
-            reader.NeedReadExact(packetName, nameof(RoomType), roomLength, out roomTypeBytes);
+            WithPin = reader.NeedBoolean(nameof(WithPin));
+            Pin = reader.NeedShortBigEndian(nameof(Pin));
+            
+            var roomLength = reader
+                .NeedByte("room type length")
+                .Ensure(l => l <= 16, PacketErrorCode.LimitExceeded, "Room type length is too long");
 
-            pin = tempPin;
+            RoomType = reader.NeedReadExact(nameof(RoomType), roomLength)
+                .Map(seq => Encoding.ASCII.GetString(seq));
         }
         else
         {
-            withPin = false;
-            pin = null;
-            roomTypeBytes = ReadOnlySequence<byte>.Empty;
+            WithPin = false;
+            Pin = null;
+            RoomType = string.Empty;
         }
 
-        if (reader.ProcessingFailed) return reader.Result;
-
-        RoomId = roomId;
-        WithPin = withPin;
-        Pin = pin;
-        RoomType = Encoding.ASCII.GetString(roomTypeBytes);
-
-        return PacketResult.Ok();
+        return reader.ProcessingFailed ? reader.Result : PacketResult.Ok();
     }
 }

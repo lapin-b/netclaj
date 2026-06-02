@@ -111,7 +111,7 @@ public static class Serializer
         // Fast path deserialization while migrating to the SequenceReader-based deserialization 
         if (packetToDeserialize is ISequenceDeserializable p)
         {
-            var packetReader = new PacketReader(ref reader);
+            var packetReader = new PacketReader(reader.UnreadSequence);
             var outcome = p.TryDeserialize(ref packetReader);
 
             if (outcome.IsFailure)

@@ -1,151 +1,125 @@
 ﻿using System.Buffers;
-using System.Diagnostics.CodeAnalysis;
+using System.Buffers.Binary;
+using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace NetClajServer.Packets.IO;
 
 /// <summary>
-/// Wrapper around a <see cref="SequenceReader{T}"/> to make packet parsing less
-/// painful to write.
+/// Helper to deserialize Mindustry packets from a <see cref="ReadOnlySequence{T}"/>.
 /// </summary>
-public ref struct PacketReader
+public class PacketReader
 {
-    private SequenceReader<byte> _reader;
-    private delegate bool ReadSimpleFunc<T>(ref SequenceReader<byte> reader, [NotNullWhen(true)] out T value);
+    public long Consumed { get; private set; }
+    public long Remaining => _sequence.Length - Consumed;
+    public bool ProcessingFailed => Result.IsFailure;
 
-    public long Consumed => _reader.Consumed;
-    public long Remaining => _reader.Remaining;
+    private readonly ReadOnlySequence<byte> _sequence;
+    private string _packetName = "(unknown packet)";
     
     // Keep the error state internally and skip deserializing the packet if the error is set
     public PacketResult Result = PacketResult.Ok();
-    public bool ProcessingFailed => Result.IsFailure;
 
-    public PacketReader(ref SequenceReader<byte> reader)
+    public PacketReader(ReadOnlySequence<byte> sequence)
     {
-        _reader = reader;
+        _sequence = sequence;
+        Consumed = 0;
     }
 
-    public void NeedByte(string packetName, string field, out byte value)
+    public void WithPacketName(string packetName)
     {
-        value = 0;
-        if (Result.IsFailure) return;
+        _packetName = packetName;
+    }
+    
+    public PacketIntermediateProcessing<byte> NeedByte(string field)
+    {
+        if (ProcessingFailed) return new PacketIntermediateProcessing<byte>(0, _packetName, field, this);
+        if(Remaining < 1) return FailEof<byte>(_packetName, field);
+
+        var value = _sequence.Slice(Consumed, 1).FirstSpan[0];
+        Consumed++;
+        return new PacketIntermediateProcessing<byte>(value, _packetName, field, this);
+    }
+
+    public PacketIntermediateProcessing<short> NeedShortBigEndian(string field)
+    {
+        return ImplReadInteger(field, BinaryPrimitives.ReadInt16BigEndian);
+    }
+    
+    public PacketIntermediateProcessing<int> NeedIntBigEndian(string field)
+    {
+        return ImplReadInteger(field, BinaryPrimitives.ReadInt32BigEndian);
+    }
+    
+    public PacketIntermediateProcessing<long> NeedLongBigEndian(string field)
+    {
+        return ImplReadInteger(field, BinaryPrimitives.ReadInt64BigEndian);
+    }
+
+    public PacketIntermediateProcessing<long> NeedRoomId(string field)
+    {
+        return NeedLongBigEndian(field);
+    }
+
+    public PacketIntermediateProcessing<bool> NeedBoolean(string field)
+    {
+        return NeedByte(field).Map(b => b != 0);
+    }
+
+    public PacketIntermediateProcessing<ReadOnlySequence<byte>> NeedReadExact(string field, int count)
+    {
+        if (ProcessingFailed) return new PacketIntermediateProcessing<ReadOnlySequence<byte>>(default, _packetName, field, this);
+        if(Remaining < count) return FailEof<ReadOnlySequence<byte>>(_packetName, field);
         
-        Result = TrySimpleReadWith(
-            packetName,
-            field,
-            static (ref r, out v) => r.TryRead(out v),
-            out value
+        var bytes = _sequence.Slice(Consumed, count);
+        Consumed += count;
+        return new PacketIntermediateProcessing<ReadOnlySequence<byte>>(bytes, _packetName, field, this);
+    }
+
+    public PacketIntermediateProcessing<ReadOnlySequence<byte>> NeedRest()
+    {
+        if (ProcessingFailed) return new(default, _packetName, "(rest of sequence)", this);
+        
+        var bytesCount = Remaining;
+        var slice = _sequence.Slice(Consumed, bytesCount);
+        Consumed += bytesCount;
+
+        return new PacketIntermediateProcessing<ReadOnlySequence<byte>>(
+            slice, _packetName, "(rest of sequence)", this
         );
     }
     
-    public void NeedShortBigEndian(string packetName, string field, out short value)
+    private PacketIntermediateProcessing<T> FailEof<T>(string packetName, string field)
     {
-        value = 0;
-        if (Result.IsFailure) return;
-        
-        Result = TrySimpleReadWith(
-            packetName,
-            field,
-            static (ref r, out v) => r.TryReadBigEndian(out v),
-            out value
-        );
+        Result = PacketResult.Err(PacketErrorCode.UnexpectedEof, packetName, field, Consumed);
+        return new PacketIntermediateProcessing<T>(default!, _packetName, field, this);
     }
     
-    public void NeedIntBigEndian(string packetName, string field, out int value)
-    {
-        value = 0;
-        if (Result.IsFailure) return;
-        
-        Result = TrySimpleReadWith(
-            packetName,
-            field,
-            static (ref r, out v) => r.TryReadBigEndian(out v),
-            out value
-        );
-    }
-    
-    public void NeedLongBigEndian(string packetName, string field, out long value)
-    {
-        value = 0;
-        if (Result.IsFailure) return;
-        
-        Result = TrySimpleReadWith(
-            packetName,
-            field,
-            static (ref r, out v) => r.TryReadBigEndian(out v),
-            out value
-        );
-    }
-
-    public void NeedRoomId(string packetName, string field, out long value)
-    {
-        NeedLongBigEndian(packetName, field, out value);
-    }
-
-    public void NeedBoolean(string packetName, string field, out bool value)
-    {
-        value = false;
-        NeedByte(packetName, field, out var rawValue);
-        if (Result.IsFailure) return;
-
-        value = rawValue != 0;
-    }
-
-    public void NeedReadExact(string packetName, string field, int count, out ReadOnlySequence<byte> bytes)
-    {
-        bytes = default;
-        if (Result.IsFailure) return;
-        
-        if (!_reader.TryReadExact(count, out bytes))
-        {
-            Result = PacketResult.Err(
-                PacketErrorCode.UnexpectedEof, packetName, field, Consumed,
-                $"Not enough bytes in remaining payload ({count} requested, {Remaining} remaining)"
-            );
-        }
-    }
-
-    public void NeedRest(out ReadOnlySequence<byte> bytes)
-    {
-        bytes = default;
-        if (Result.IsFailure) return;
-        
-        bytes = _reader.UnreadSequence;
-    }
-
-    public string DebugRemaining()
-    {
-        return Convert.ToHexString(_reader.UnreadSequence.ToArray());
-    }
-
-    public void Require(
-        bool condition,
-        string packetName,
+    private PacketIntermediateProcessing<TNumber> ImplReadInteger<TNumber>(
         string field,
-        PacketErrorCode failureCode,
-        string? failureDetail
+        Func<ReadOnlySpan<byte>, TNumber> readInteger
     )
+    where TNumber : IBinaryInteger<TNumber>
     {
-        if (Result.IsFailure) return;
+        var typeSize = Marshal.SizeOf<TNumber>();
+        if (ProcessingFailed) return new PacketIntermediateProcessing<TNumber>(default!, _packetName, field, this);
+        if(Remaining < typeSize) return FailEof<TNumber>(_packetName, field);
         
-        Result = condition
-            ? PacketResult.Ok()
-            : PacketResult.Err(failureCode, packetName, field, Consumed, failureDetail);
-    }
-    
-    // Template method for reading integers and whatnot off the reader
-    private PacketResult TrySimpleReadWith<T>(
-        string packetName,
-        string field,
-        ReadSimpleFunc<T> read,
-        [NotNullWhen(true)]
-        out T val)
-    {
-        if (read(ref _reader, out val))
+        var valueSequence = _sequence.Slice(Consumed, typeSize);
+        
+        TNumber value;
+        if (valueSequence.IsSingleSegment)
         {
-            return PacketResult.Ok();
+            value = readInteger(valueSequence.FirstSpan);
         }
-
-        val = default;
-        return PacketResult.Err(PacketErrorCode.UnexpectedEof, packetName, field, Consumed);
+        else
+        {
+            Span<byte> valueBytes = stackalloc byte[typeSize];
+            valueSequence.CopyTo(valueBytes);
+            value = readInteger(valueBytes);
+        }
+        
+        Consumed += typeSize;
+        return new PacketIntermediateProcessing<TNumber>(value, _packetName, field, this);
     }
 }
