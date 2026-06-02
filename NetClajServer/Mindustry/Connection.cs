@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.IO;
+using NetClajServer.Metrics;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Framework;
 using NetClajServer.Packets.Streaming;
@@ -21,6 +22,7 @@ public partial class Connection
 
     private readonly MindustryServer _server;
     private readonly ILogger<Connection> _logger;
+    private readonly ServerMetrics _metrics;
 
     // Connection related properties
     private readonly TcpClient _tcp;
@@ -51,13 +53,15 @@ public partial class Connection
         TcpClient tcp,
         UdpClient udp,
         MindustryServer server,
-        ILogger<Connection> logger)
+        ILogger<Connection> logger,
+        ServerMetrics metrics)
     {
         Id = connectionId;
         _tcp = tcp;
         _udp = udp;
         _server = server;
         _logger = logger;
+        _metrics = metrics;
         _tcpStream = _tcp.GetStream();
     }
 
@@ -132,6 +136,8 @@ public partial class Connection
     
     public async Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
     {
+        _metrics.IncrementIncomingPacketsProcessed();
+
         // A player joins the room as a client and will send a few packets that might arrive before the
         // room host is aware of this player. To not lose anything, buffer the game packets until the host
         // is aware of the player.

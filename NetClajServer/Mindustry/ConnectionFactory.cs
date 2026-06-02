@@ -1,15 +1,19 @@
 ﻿using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
+using NetClajServer.Datastructures;
+using NetClajServer.Metrics;
 
 namespace NetClajServer.Mindustry;
 
 public class ConnectionFactory
 {
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ServerMetrics _metrics;
 
-    public ConnectionFactory(ILoggerFactory loggerFactory)
+    public ConnectionFactory(ILoggerFactory loggerFactory, ServerMetrics metrics)
     {
         _loggerFactory = loggerFactory;
+        _metrics = metrics;
     }
 
     public Connection Create(
@@ -31,7 +35,8 @@ public class ConnectionFactory
             tcpClient,
             udpClient,
             server,
-            _loggerFactory.CreateLogger<Connection>()
+            _loggerFactory.CreateLogger<Connection>(),
+            _metrics
         );
     }
 }

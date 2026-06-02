@@ -6,6 +6,7 @@ using NetClajServer.Claj;
 using NetClajServer.Claj.Handlers;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Datastructures;
+using NetClajServer.Metrics;
 using NetClajServer.Mindustry;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
@@ -57,6 +58,8 @@ class Program
 
                 return config ?? throw new Exception("Can't read ClajServer configuration");
             })
+            .AddSingleton<ServerMetrics>()
+            
             // These handlers implement multiple interfaces and should point to the same object
             .AddSingleton<FrameworkPacketsHandler>()
             .AddSingleton<GamePacketHandler>()
@@ -85,5 +88,6 @@ class Program
         ;
 
         collection.AddHostedService<ClajServerService>();
+        collection.AddHostedService<ProcessedPacketsRateUpdater>();
     }
 }
