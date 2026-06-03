@@ -4,7 +4,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomConfigPacket: MindustryPacket, ISequenceDeserializable
+public class RoomConfigPacket: MindustryPacket
 {
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 12;
@@ -20,11 +20,6 @@ public class RoomConfigPacket: MindustryPacket, ISequenceDeserializable
 
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Deserialize(BinaryReader reader)
-    {
-        throw new NotSupportedException();
-    }
-
     public override void Serialize(BinaryWriter writer)
     {
         var configFlags =
@@ -39,7 +34,7 @@ public class RoomConfigPacket: MindustryPacket, ISequenceDeserializable
         writer.WriteInt16BigEndian(MaxClients);
     }
 
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         reader.WithPacketName(nameof(RoomConfigPacket));
         var config = reader.ReadByte("RoomConfig").Value;

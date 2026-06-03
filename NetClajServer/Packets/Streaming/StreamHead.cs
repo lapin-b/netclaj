@@ -3,7 +3,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Streaming;
 
-public class StreamHead: MindustryPacket, ISequenceDeserializable
+public class StreamHead: MindustryPacket
 {
     private static int _streamId = 1;
     
@@ -26,13 +26,7 @@ public class StreamHead: MindustryPacket, ISequenceDeserializable
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
     
-    public override void Deserialize(BinaryReader reader)
-    {
-        // A stream is only sent from the server to the client
-        throw new NotSupportedException();
-    }
-    
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         // A stream is only sent from the server to the client
         throw new NotSupportedException();

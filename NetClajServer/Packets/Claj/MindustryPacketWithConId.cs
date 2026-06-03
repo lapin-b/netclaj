@@ -3,7 +3,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public abstract class MindustryPacketWithConId: MindustryPacket, ISequenceDeserializable
+public abstract class MindustryPacketWithConId: MindustryPacket
 {
     public int ConnectionId { get; set; }
     
@@ -12,18 +12,13 @@ public abstract class MindustryPacketWithConId: MindustryPacket, ISequenceDeseri
     public override sbyte GetPacketFamily() => Type;
     public abstract override byte GetPacketIdentifier();
 
-    public override void Deserialize(BinaryReader reader)
-    {
-        throw new NotSupportedException();
-    }
-
     public override void Serialize(BinaryWriter writer)
     {
         writer.WriteInt32BigEndian(ConnectionId);
         SerializeInnerPayload(writer);
     }
     
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         ConnectionId = reader.ReadIntBigEndian(nameof(ConnectionId));
         TryDeserializeInnerPayload(ref reader);

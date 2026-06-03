@@ -1,4 +1,5 @@
 ﻿using System.Net.Sockets;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets;
 
@@ -32,7 +33,7 @@ public abstract class MindustryPacket
     /// pointing at the first byte to decode.
     /// </remarks>
     /// <param name="reader">The binary reader to decode the packet with</param>
-    public abstract void Deserialize(BinaryReader reader);
+    public abstract PacketResult TryDeserialize(ref PacketReader reader);
     
     /// <summary>
     /// Write object attributes into a sequence of bytes. The packet family and identifier have already been

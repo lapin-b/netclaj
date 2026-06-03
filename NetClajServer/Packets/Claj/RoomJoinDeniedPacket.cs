@@ -4,7 +4,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomJoinDeniedPacket: MindustryPacket, ISequenceDeserializable
+public class RoomJoinDeniedPacket: MindustryPacket
 {
     public long RoomId { get; set; }
     public RoomRejection Reason { get; set; }
@@ -15,18 +15,13 @@ public class RoomJoinDeniedPacket: MindustryPacket, ISequenceDeserializable
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Deserialize(BinaryReader reader)
-    {
-        throw new NotSupportedException();
-    }
-
     public override void Serialize(BinaryWriter writer)
     {
         writer.WriteInt64BigEndian(RoomId);
         writer.Write((byte)Reason);
     }
 
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         reader.WithPacketName(nameof(RoomJoinDeniedPacket));
         RoomId = reader.ReadRoomId(nameof(RoomId));

@@ -108,29 +108,17 @@ public static class Serializer
                 return packetToDeserialize;
         }
         
-        // Fast path deserialization while migrating to the SequenceReader-based deserialization 
-        if (packetToDeserialize is ISequenceDeserializable p)
-        {
-            var packetReader = new PacketReader(reader.UnreadSequence);
-            var outcome = p.TryDeserialize(ref packetReader);
+        var packetReader = new PacketReader(reader.UnreadSequence);
+        var outcome = packetToDeserialize.TryDeserialize(ref packetReader);
 
-            if (outcome.IsFailure)
-            {
-                throw new SerializerException(
-                    $"Error while parsing {outcome.PacketName} field {outcome.Field}: {outcome.Code} on byte {outcome.Offset}: {outcome.Detail ?? "<no further details>"}"
-                );
-            }
-            
-            reader.Advance(reader.Remaining);
-        }
-        else // Fall-back slow path for packets not migrated
+        if (outcome.IsFailure)
         {
-            var remainingBytes = reader.UnreadSequence.ToArray();
-            using var memoryStream = new MemoryStream(remainingBytes);
-            using var binaryReader = new BinaryReader(memoryStream);
-            packetToDeserialize.Deserialize(binaryReader);
-            reader.Advance(memoryStream.Position);
+            throw new SerializerException(
+                $"Error while parsing {outcome.PacketName} field {outcome.Field}: {outcome.Code} on byte {outcome.Offset}: {outcome.Detail ?? "<no further details>"}"
+            );
         }
+        
+        reader.Advance(reader.Remaining);
         
         return packetToDeserialize;
         

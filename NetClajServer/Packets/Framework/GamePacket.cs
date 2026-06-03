@@ -3,7 +3,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Framework;
 
-public class GamePacket: MindustryPacket, ISequenceDeserializable
+public class GamePacket: MindustryPacket
 {
     public ReadOnlySequence<byte> Buffer { get; set; }
 
@@ -14,13 +14,8 @@ public class GamePacket: MindustryPacket, ISequenceDeserializable
 
     public override sbyte GetPacketFamily() => sbyte.MaxValue;
     public override byte GetPacketIdentifier() => byte.MaxValue;
-    
-    public override void Deserialize(BinaryReader reader)
-    {
-        throw new NotSupportedException();
-    }
-    
-    public PacketResult TryDeserialize(ref PacketReader reader)
+
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         Buffer = reader.ReadRest();
         return reader.Result;

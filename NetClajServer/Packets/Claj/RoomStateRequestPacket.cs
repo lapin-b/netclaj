@@ -2,7 +2,7 @@
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomStateRequestPacket: MindustryPacket, ISequenceDeserializable
+public class RoomStateRequestPacket: MindustryPacket
 {
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 13;
@@ -11,17 +11,12 @@ public class RoomStateRequestPacket: MindustryPacket, ISequenceDeserializable
 
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Deserialize(BinaryReader reader)
-    {
-        // no-op
-    }
-
     public override void Serialize(BinaryWriter writer)
     {
         // no-op
     }
 
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         return reader.Result;
     }

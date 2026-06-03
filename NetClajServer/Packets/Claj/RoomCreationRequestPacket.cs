@@ -4,7 +4,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
+public class RoomCreationRequestPacket: MindustryPacket
 {
     public int? Version { get; set; }
     public string RoomType { get; set; } = string.Empty;
@@ -15,24 +15,12 @@ public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
     
-    public override void Deserialize(BinaryReader reader)
-    {
-        // The old protocol version used a UTF string to encode the version. Now, the major protocol version is used
-        // to check for compatibility. Said version is on the 2nd byte relative to the "packet contents"
-        var utflen = reader.ReadUInt16BigEndian();
-        
-        if (utflen == 0 && reader.BaseStream.HasBytesRemaining())
-        {
-            // TODO: Do the same thing as the CLaJ protocol, accept up to 16 bytes of data
-            Version = reader.ReadInt32BigEndian();
-            RoomType = new string(reader.ReadChars(reader.ReadByte()));
-        }
-    }
-    
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         reader.WithPacketName(nameof(RoomCreationRequestPacket));
 
+        // The old protocol version used a UTF string to encode the version. Now, the major protocol version is used
+        // to check for compatibility. Said version is on the 2nd byte relative to the "packet contents"
         reader.ReadShortBigEndian("UTF length")
             .Ensure(l => l == 0, PacketErrorCode.InvalidValue, "UTF length is not zero");
         

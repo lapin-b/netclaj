@@ -5,7 +5,7 @@ using NetClajServer.Packets.Streaming;
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomListPacket: MindustryPacket, ISequenceDeserializable, IStreamablePacket
+public class RoomListPacket: MindustryPacket, IStreamablePacket
 {
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 19;
@@ -16,12 +16,7 @@ public class RoomListPacket: MindustryPacket, ISequenceDeserializable, IStreamab
 
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Deserialize(BinaryReader reader)
-    {
-        throw new NotSupportedException();
-    }
-    
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         throw new NotSupportedException();
     }

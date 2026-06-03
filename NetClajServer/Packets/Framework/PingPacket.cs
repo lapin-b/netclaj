@@ -3,7 +3,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Framework;
 
-public class PingPacket: MindustryPacket, ISequenceDeserializable
+public class PingPacket: MindustryPacket
 {
     public const sbyte Type = PacketType.Framework;
     public const byte Identifier = 0;
@@ -13,13 +13,8 @@ public class PingPacket: MindustryPacket, ISequenceDeserializable
     
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
-    public override void Deserialize(BinaryReader reader)
-    {
-        Id = reader.ReadInt32BigEndian();
-        IsReply = reader.ReadBoolean();
-    }
-    
-    public PacketResult TryDeserialize(ref PacketReader reader)
+
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         reader.WithPacketName(nameof(PingPacket));
         

@@ -3,7 +3,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class ClajPopupPacket: MindustryPacket, ISequenceDeserializable
+public class ClajPopupPacket: MindustryPacket
 {
     public string Message { get; set; }
     
@@ -12,18 +12,13 @@ public class ClajPopupPacket: MindustryPacket, ISequenceDeserializable
 
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
-    
-    public override void Deserialize(BinaryReader reader)
-    {
-        Message = reader.ReadJavaUtf();
-    }
 
     public override void Serialize(BinaryWriter writer)
     {
         writer.WriteJavaUtf(Message);
     }
 
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         Message = reader.ReadJavaUtf(nameof(Message));
         return reader.Result;

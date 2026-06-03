@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Framework;
 
@@ -11,8 +12,8 @@ public class MaterializedGamePacket: GamePacket
         IsTcp = packet.IsTcp;
         Buffer = packet.Buffer.ToArray();
     }
-    
-    public override void Deserialize(BinaryReader reader)
+
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         throw new NotSupportedException();
     }

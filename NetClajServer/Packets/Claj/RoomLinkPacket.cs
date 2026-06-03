@@ -3,7 +3,7 @@ using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomLinkPacket: MindustryPacket, ISequenceDeserializable
+public class RoomLinkPacket: MindustryPacket
 {
     public long RoomId { get; set; }
     
@@ -12,18 +12,13 @@ public class RoomLinkPacket: MindustryPacket, ISequenceDeserializable
 
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
-    
-    public override void Deserialize(BinaryReader reader)
-    {
-        RoomId = reader.ReadInt64BigEndian();
-    }
 
     public override void Serialize(BinaryWriter writer)
     {
         writer.WriteInt64BigEndian(RoomId);
     }
 
-    public PacketResult TryDeserialize(ref PacketReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
         RoomId = reader.ReadRoomId(nameof(RoomId));
         return reader.Result;

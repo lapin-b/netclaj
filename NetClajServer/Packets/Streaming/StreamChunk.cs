@@ -1,4 +1,5 @@
 ﻿using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Streaming;
 
@@ -14,10 +15,10 @@ public class StreamChunk: MindustryPacket
 
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
-    
-    public override void Deserialize(BinaryReader reader)
+    public override PacketResult TryDeserialize(ref PacketReader reader)
     {
-        throw new NotImplementedException();
+        // A stream is only sent from the server to the client
+        throw new NotSupportedException();
     }
 
     public override void Serialize(BinaryWriter writer)
