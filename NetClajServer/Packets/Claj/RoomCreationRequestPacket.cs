@@ -31,29 +31,22 @@ public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
     
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        const string packetName = nameof(RoomCreationRequestPacket);
+        reader.WithPacketName(nameof(RoomCreationRequestPacket));
 
-        reader.NeedShortBigEndian(packetName, "UTF length", out var utflen);
-        reader.Require(
-            utflen == 0 && reader.Remaining > 0, packetName,"UTF length",
-            PacketErrorCode.InvalidValue, "Old client version detected or no more bytes to process"
-        );
+        reader.NeedShortBigEndian("UTF length")
+            .Ensure(l => l == 0, PacketErrorCode.InvalidValue, "UTF length is not zero");
         
-        reader.NeedIntBigEndian(packetName, nameof(Version), out var version);
+        Version = reader.NeedIntBigEndian(nameof(Version));
         
-        reader.NeedByte(packetName, nameof(RoomType), out var strLen);
-        reader.Require(
-            strLen <= 16, packetName, nameof(RoomType), 
-            PacketErrorCode.LimitExceeded, "String length is zero or more than 16"
-        );
-        reader.NeedReadExact(packetName, nameof(RoomType), strLen, out var roomTypeBytes);
+        var strLen = reader
+            .NeedByte(nameof(RoomType))
+            .Ensure(l => l is > 0 and <= 16, PacketErrorCode.InvalidValue, "String length is zero length or more than 16");
 
-        if (reader.Result.IsFailure) return reader.Result;
+        RoomType = reader
+            .NeedReadExact(nameof(RoomType), strLen)
+            .Map(roomTypeBytes => Encoding.ASCII.GetString(roomTypeBytes));
 
-        Version = version;
-        RoomType = Encoding.ASCII.GetString(roomTypeBytes);
-
-        return PacketResult.Ok();
+        return reader.Result;
     }
 
     public override void Serialize(BinaryWriter writer)

@@ -41,20 +41,16 @@ public class RoomConfigPacket: MindustryPacket, ISequenceDeserializable
 
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        const string packetName = nameof(RoomConfigPacket);
-        reader.NeedByte(packetName, "RoomConfig", out var config);
-        reader.NeedShortBigEndian(packetName, nameof(Pin), out var pin);
-        reader.NeedShortBigEndian(packetName, nameof(MaxClients), out var maxClients);
-        if (reader.Result.IsFailure) return reader.Result;
+        reader.WithPacketName(nameof(RoomConfigPacket));
+        var config = reader.NeedByte("RoomConfig").Value;
+        Pin = reader.NeedShortBigEndian(nameof(Pin));
+        MaxClients = reader.NeedShortBigEndian(nameof(MaxClients));
 
         IsPublic =            (config & 0b0100) == 0b0100;
         IsProtectedByPin =    (config & 0b0010) == 0b0010;
         CanRequestHostState = (config & 0b0001) == 0b0001;
-
-        Pin = pin;
-        MaxClients = maxClients;
-
-        return PacketResult.Ok();
+        
+        return reader.Result;
     }
 
     public RoomConfiguration IntoRoomConfiguration()

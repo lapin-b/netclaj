@@ -22,11 +22,8 @@ public class GamePacket: MindustryPacket, ISequenceDeserializable
     
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        reader.NeedRest(out var bytes);
-        if (reader.ProcessingFailed) return reader.Result;
-
-        Buffer = bytes;
-        return PacketResult.Ok();
+        Buffer = reader.NeedRest();
+        return reader.Result;
     }
 
     public override void Serialize(BinaryWriter writer)

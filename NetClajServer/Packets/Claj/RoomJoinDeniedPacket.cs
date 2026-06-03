@@ -28,14 +28,9 @@ public class RoomJoinDeniedPacket: MindustryPacket, ISequenceDeserializable
 
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        const string packetName = nameof(RoomJoinDeniedPacket);
-        reader.NeedRoomId(packetName, nameof(RoomId), out var roomId);
-        reader.NeedByte(packetName, nameof(Reason), out var reason);
-        if (reader.ProcessingFailed) return reader.Result;
-
-        RoomId = roomId;
-        Reason = (RoomRejection)reason;
-        
-        return PacketResult.Ok();
+        reader.WithPacketName(nameof(RoomJoinDeniedPacket));
+        RoomId = reader.NeedRoomId(nameof(RoomId));
+        Reason = (RoomRejection)reader.NeedByte(nameof(Reason)).Value;
+        return reader.Result;
     }
 }

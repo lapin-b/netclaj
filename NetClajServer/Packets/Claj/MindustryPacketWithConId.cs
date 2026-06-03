@@ -25,13 +25,10 @@ public abstract class MindustryPacketWithConId: MindustryPacket, ISequenceDeseri
     
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        reader.NeedIntBigEndian(nameof(MindustryPacketWithConId), nameof(ConnectionId), out var cid);
+        ConnectionId = reader.NeedIntBigEndian(nameof(ConnectionId));
         TryDeserializeInnerPayload(ref reader);
-
-        if (reader.ProcessingFailed) return reader.Result;
-        ConnectionId = cid;
-
-        return PacketResult.Ok();
+        
+        return reader.Result;
     }
 
     protected abstract void TryDeserializeInnerPayload(ref PacketReader reader);

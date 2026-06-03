@@ -13,8 +13,8 @@ public class ConnectionJoinPacket: MindustryPacketWithConId
     
     protected override void TryDeserializeInnerPayload(ref PacketReader reader)
     {
-        reader.NeedLongBigEndian(nameof(ConnectionJoinPacket), nameof(RoomId), out var roomId);
-        RoomId = roomId;
+        reader.WithPacketName(nameof(ConnectionJoinPacket));
+        RoomId = reader.NeedRoomId(nameof(RoomId));
     }
 
     protected override void SerializeInnerPayload(BinaryWriter writer)

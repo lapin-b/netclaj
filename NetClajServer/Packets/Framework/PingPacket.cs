@@ -21,16 +21,12 @@ public class PingPacket: MindustryPacket, ISequenceDeserializable
     
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        const string packetName = nameof(PingPacket);
-
-        reader.NeedIntBigEndian(packetName, nameof(Id), out var pingId);
-        reader.NeedBoolean(packetName, nameof(IsReply), out var isReply);
-        if (reader.Result.IsFailure) return reader.Result;
-
-        Id = pingId;
-        IsReply = isReply;
+        reader.WithPacketName(nameof(PingPacket));
         
-        return PacketResult.Ok();
+        Id = reader.NeedIntBigEndian(nameof(Id));
+        IsReply = reader.NeedBoolean(nameof(IsReply));
+
+        return reader.Result;
     }
 
     public override void Serialize(BinaryWriter writer)

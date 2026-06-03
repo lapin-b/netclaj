@@ -12,8 +12,8 @@ public class ConnectionClosedPacket: MindustryPacketWithConId
 
     protected override void TryDeserializeInnerPayload(ref PacketReader reader)
     {
-        reader.NeedByte(nameof(ConnectionClosedPacket), nameof(Reason), out var reason);
-        Reason = (ArcNetDcReason)reason;
+        reader.WithPacketName(nameof(ConnectionClosedPacket));
+        Reason = (ArcNetDcReason)reader.NeedByte(nameof(Reason)).Value;
     }
 
     protected override void SerializeInnerPayload(BinaryWriter writer)

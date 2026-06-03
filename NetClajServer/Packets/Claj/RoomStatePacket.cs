@@ -31,14 +31,11 @@ public class RoomStatePacket: MindustryPacket, ISequenceDeserializable
 
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        const string packetName = nameof(RoomStatePacket);
+        reader.WithPacketName(nameof(RoomStatePacket));
         
-        reader.NeedShortBigEndian(packetName, nameof(StateBuffer), out var bufferLength);
-        reader.NeedReadExact(packetName, nameof(StateBuffer), bufferLength, out var buffer);
-        if (reader.ProcessingFailed) return reader.Result;
-
-        StateBuffer = buffer;
+        var bufferLength = reader.NeedShortBigEndian(nameof(StateBuffer)).Value;
+        StateBuffer = reader.NeedReadExact(nameof(StateBuffer), bufferLength);
         
-        return PacketResult.Ok();
+        return reader.Result;
     }
 }

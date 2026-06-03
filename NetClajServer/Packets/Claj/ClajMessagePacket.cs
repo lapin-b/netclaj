@@ -1,9 +1,10 @@
 ﻿using NetClajServer.Claj;
 using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class ClajMessagePacket: MindustryPacket
+public class ClajMessagePacket: MindustryPacket, ISequenceDeserializable
 {
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 22;
@@ -20,5 +21,11 @@ public class ClajMessagePacket: MindustryPacket
     public override void Serialize(BinaryWriter writer)
     {
         writer.WriteInt32BigEndian((int)Message);
+    }
+
+    public PacketResult TryDeserialize(ref PacketReader reader)
+    {
+        Message = (ClajMessages)reader.NeedIntBigEndian(nameof(Message)).Value;
+        return reader.Result;
     }
 }
