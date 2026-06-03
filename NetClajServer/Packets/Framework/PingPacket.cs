@@ -23,8 +23,8 @@ public class PingPacket: MindustryPacket, ISequenceDeserializable
     {
         reader.WithPacketName(nameof(PingPacket));
         
-        Id = reader.NeedIntBigEndian(nameof(Id));
-        IsReply = reader.NeedBoolean(nameof(IsReply));
+        Id = reader.ReadIntBigEndian(nameof(Id));
+        IsReply = reader.ReadBoolean(nameof(IsReply));
 
         return reader.Result;
     }

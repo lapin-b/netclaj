@@ -25,7 +25,7 @@ public class ClajMessagePacket: MindustryPacket, ISequenceDeserializable
 
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        Message = (ClajMessages)reader.NeedIntBigEndian(nameof(Message)).Value;
+        Message = (ClajMessages)reader.ReadIntBigEndian(nameof(Message)).Value;
         return reader.Result;
     }
 }

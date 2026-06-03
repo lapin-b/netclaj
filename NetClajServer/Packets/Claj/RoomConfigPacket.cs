@@ -42,9 +42,9 @@ public class RoomConfigPacket: MindustryPacket, ISequenceDeserializable
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
         reader.WithPacketName(nameof(RoomConfigPacket));
-        var config = reader.NeedByte("RoomConfig").Value;
-        Pin = reader.NeedShortBigEndian(nameof(Pin));
-        MaxClients = reader.NeedShortBigEndian(nameof(MaxClients));
+        var config = reader.ReadByte("RoomConfig").Value;
+        Pin = reader.ReadShortBigEndian(nameof(Pin));
+        MaxClients = reader.ReadShortBigEndian(nameof(MaxClients));
 
         IsPublic =            (config & 0b0100) == 0b0100;
         IsProtectedByPin =    (config & 0b0010) == 0b0010;

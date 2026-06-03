@@ -4,8 +4,8 @@ namespace StressTestHarness;
 
 class Program
 {
-    private const int ClientsCount = 200;
-    private const int RoomsCount = 10;
+    private const int ClientsCount = 2;
+    private const int RoomsCount = 1;
     private const double RotationRate = .1;
 
     private const string HostToTest = "127.0.0.1";

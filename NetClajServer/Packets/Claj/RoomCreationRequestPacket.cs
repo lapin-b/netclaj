@@ -33,17 +33,17 @@ public class RoomCreationRequestPacket: MindustryPacket, ISequenceDeserializable
     {
         reader.WithPacketName(nameof(RoomCreationRequestPacket));
 
-        reader.NeedShortBigEndian("UTF length")
+        reader.ReadShortBigEndian("UTF length")
             .Ensure(l => l == 0, PacketErrorCode.InvalidValue, "UTF length is not zero");
         
-        Version = reader.NeedIntBigEndian(nameof(Version));
+        Version = reader.ReadIntBigEndian(nameof(Version));
         
         var strLen = reader
-            .NeedByte(nameof(RoomType))
+            .ReadByte(nameof(RoomType))
             .Ensure(l => l is > 0 and <= 16, PacketErrorCode.InvalidValue, "String length is zero length or more than 16");
 
         RoomType = reader
-            .NeedReadExact(nameof(RoomType), strLen)
+            .ReadExactBytes(nameof(RoomType), strLen)
             .Map(roomTypeBytes => Encoding.ASCII.GetString(roomTypeBytes));
 
         return reader.Result;

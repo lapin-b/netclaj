@@ -22,7 +22,7 @@ public class GamePacket: MindustryPacket, ISequenceDeserializable
     
     public PacketResult TryDeserialize(ref PacketReader reader)
     {
-        Buffer = reader.NeedRest();
+        Buffer = reader.ReadRest();
         return reader.Result;
     }
 

@@ -14,7 +14,7 @@ public class ConnectionJoinPacket: MindustryPacketWithConId
     protected override void TryDeserializeInnerPayload(ref PacketReader reader)
     {
         reader.WithPacketName(nameof(ConnectionJoinPacket));
-        RoomId = reader.NeedRoomId(nameof(RoomId));
+        RoomId = reader.ReadRoomId(nameof(RoomId));
     }
 
     protected override void SerializeInnerPayload(BinaryWriter writer)

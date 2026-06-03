@@ -13,7 +13,7 @@ public class ConnectionClosedPacket: MindustryPacketWithConId
     protected override void TryDeserializeInnerPayload(ref PacketReader reader)
     {
         reader.WithPacketName(nameof(ConnectionClosedPacket));
-        Reason = (ArcNetDcReason)reader.NeedByte(nameof(Reason)).Value;
+        Reason = (ArcNetDcReason)reader.ReadByte(nameof(Reason)).Value;
     }
 
     protected override void SerializeInnerPayload(BinaryWriter writer)

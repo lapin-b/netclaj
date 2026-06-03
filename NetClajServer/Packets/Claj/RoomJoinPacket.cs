@@ -32,19 +32,19 @@ public class RoomJoinPacket: MindustryPacket, ISequenceDeserializable
     {
         reader.WithPacketName(nameof(RoomJoinRequestPacket));
 
-        RoomId = reader.NeedRoomId(nameof(RoomId));
+        RoomId = reader.ReadRoomId(nameof(RoomId));
         
         // Compatibility with older versions of the client. This will only work if the room doesn't have a pin set.
         if (reader.Remaining > 0)
         {
-            WithPin = reader.NeedBoolean(nameof(WithPin));
-            Pin = reader.NeedShortBigEndian(nameof(Pin));
+            WithPin = reader.ReadBoolean(nameof(WithPin));
+            Pin = reader.ReadShortBigEndian(nameof(Pin));
             
             var roomLength = reader
-                .NeedByte("room type length")
+                .ReadByte("room type length")
                 .Ensure(l => l <= 16, PacketErrorCode.LimitExceeded, "Room type length is too long");
 
-            RoomType = reader.NeedReadExact(nameof(RoomType), roomLength)
+            RoomType = reader.ReadExactBytes(nameof(RoomType), roomLength)
                 .Map(seq => Encoding.ASCII.GetString(seq));
         }
         else

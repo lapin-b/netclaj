@@ -33,8 +33,8 @@ public class RoomStatePacket: MindustryPacket, ISequenceDeserializable
     {
         reader.WithPacketName(nameof(RoomStatePacket));
         
-        var bufferLength = reader.NeedShortBigEndian(nameof(StateBuffer)).Value;
-        StateBuffer = reader.NeedReadExact(nameof(StateBuffer), bufferLength);
+        var bufferLength = reader.ReadShortBigEndian(nameof(StateBuffer)).Value;
+        StateBuffer = reader.ReadExactBytes(nameof(StateBuffer), bufferLength);
         
         return reader.Result;
     }

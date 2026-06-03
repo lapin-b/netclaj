@@ -31,7 +31,7 @@ public class PacketReader
         _packetName = packetName;
     }
     
-    public PacketIntermediateProcessing<byte> NeedByte(string field)
+    public PacketIntermediateProcessing<byte> ReadByte(string field)
     {
         if (ProcessingFailed) return new PacketIntermediateProcessing<byte>(0, _packetName, field, this);
         if(Remaining < 1) return FailEof<byte>(_packetName, field);
@@ -41,32 +41,32 @@ public class PacketReader
         return new PacketIntermediateProcessing<byte>(value, _packetName, field, this);
     }
 
-    public PacketIntermediateProcessing<short> NeedShortBigEndian(string field)
+    public PacketIntermediateProcessing<short> ReadShortBigEndian(string field)
     {
         return ImplReadInteger(field, BinaryPrimitives.ReadInt16BigEndian);
     }
     
-    public PacketIntermediateProcessing<int> NeedIntBigEndian(string field)
+    public PacketIntermediateProcessing<int> ReadIntBigEndian(string field)
     {
         return ImplReadInteger(field, BinaryPrimitives.ReadInt32BigEndian);
     }
     
-    public PacketIntermediateProcessing<long> NeedLongBigEndian(string field)
+    public PacketIntermediateProcessing<long> ReadLongBigEndian(string field)
     {
         return ImplReadInteger(field, BinaryPrimitives.ReadInt64BigEndian);
     }
 
-    public PacketIntermediateProcessing<long> NeedRoomId(string field)
+    public PacketIntermediateProcessing<long> ReadRoomId(string field)
     {
-        return NeedLongBigEndian(field);
+        return ReadLongBigEndian(field);
     }
 
-    public PacketIntermediateProcessing<bool> NeedBoolean(string field)
+    public PacketIntermediateProcessing<bool> ReadBoolean(string field)
     {
-        return NeedByte(field).Map(b => b != 0);
+        return ReadByte(field).Map(b => b != 0);
     }
 
-    public PacketIntermediateProcessing<ReadOnlySequence<byte>> NeedReadExact(string field, int count)
+    public PacketIntermediateProcessing<ReadOnlySequence<byte>> ReadExactBytes(string field, int count)
     {
         if (ProcessingFailed) return new PacketIntermediateProcessing<ReadOnlySequence<byte>>(default, _packetName, field, this);
         if(Remaining < count) return FailEof<ReadOnlySequence<byte>>(_packetName, field);
@@ -76,7 +76,7 @@ public class PacketReader
         return new PacketIntermediateProcessing<ReadOnlySequence<byte>>(bytes, _packetName, field, this);
     }
 
-    public PacketIntermediateProcessing<ReadOnlySequence<byte>> NeedRest()
+    public PacketIntermediateProcessing<ReadOnlySequence<byte>> ReadRest()
     {
         if (ProcessingFailed) return new(default, _packetName, "(rest of sequence)", this);
         
