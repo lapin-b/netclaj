@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -46,6 +47,11 @@ public class PacketReader
         return ImplReadInteger(field, BinaryPrimitives.ReadInt16BigEndian);
     }
     
+    public PacketIntermediateProcessing<ushort> ReadUShortBigEndian(string field)
+    {
+        return ImplReadInteger(field, BinaryPrimitives.ReadUInt16BigEndian);
+    }
+    
     public PacketIntermediateProcessing<int> ReadIntBigEndian(string field)
     {
         return ImplReadInteger(field, BinaryPrimitives.ReadInt32BigEndian);
@@ -59,6 +65,11 @@ public class PacketReader
     public PacketIntermediateProcessing<long> ReadRoomId(string field)
     {
         return ReadLongBigEndian(field);
+    }
+
+    public PacketIntermediateProcessing<int> ReadConnectionId(string field)
+    {
+        return ReadIntBigEndian(field);
     }
 
     public PacketIntermediateProcessing<bool> ReadBoolean(string field)
@@ -88,10 +99,42 @@ public class PacketReader
             slice, _packetName, "(rest of sequence)", this
         );
     }
+
+    public PacketIntermediateProcessing<string> ReadJavaUtf(string field)
+    {
+        // Copy-pasted Java implementation, adapted to the fluent interface of the packet reader
+        var utflen = ReadUShortBigEndian(field).Value;
+        var bytearr = ReadExactBytes(field, utflen)
+            .Map(seq =>
+            {
+                if(seq.IsSingleSegment) return seq.First;
+                return seq.ToArray().AsMemory();
+            })
+            .Value
+            .Span;
+
+        if(ProcessingFailed) return new PacketIntermediateProcessing<string>(string.Empty, _packetName, field, this);
+
+        try
+        {
+            var theString = JavaDataObjectStream.ReadUtf(bytearr, utflen);
+            return new PacketIntermediateProcessing<string>(theString, _packetName, field, this);
+        }
+        catch (UtfDataFormatException e)
+        {
+            return FailInvalidValue<string>(field, e.Message);
+        }
+    }
     
     private PacketIntermediateProcessing<T> FailEof<T>(string packetName, string field)
     {
         Result = PacketResult.Err(PacketErrorCode.UnexpectedEof, packetName, field, Consumed);
+        return new PacketIntermediateProcessing<T>(default!, _packetName, field, this);
+    }
+
+    private PacketIntermediateProcessing<T> FailInvalidValue<T>(string field, string? detail = null)
+    {
+        Result = PacketResult.Err(PacketErrorCode.InvalidValue, _packetName, field, Consumed, detail);
         return new PacketIntermediateProcessing<T>(default!, _packetName, field, this);
     }
     

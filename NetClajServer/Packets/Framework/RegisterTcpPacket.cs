@@ -1,8 +1,9 @@
 ﻿using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Framework;
 
-public class RegisterTcpPacket: MindustryPacket
+public class RegisterTcpPacket: MindustryPacket, ISequenceDeserializable
 {
     public int ConnectionId { get; set; }
 
@@ -20,5 +21,11 @@ public class RegisterTcpPacket: MindustryPacket
     public override void Serialize(BinaryWriter writer)
     {
         writer.WriteInt32BigEndian(ConnectionId);
+    }
+
+    public PacketResult TryDeserialize(ref PacketReader reader)
+    {
+        ConnectionId = reader.ReadConnectionId(nameof(ConnectionId));
+        return reader.Result;
     }
 }

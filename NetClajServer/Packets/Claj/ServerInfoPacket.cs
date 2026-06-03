@@ -1,6 +1,8 @@
-﻿namespace NetClajServer.Packets.Claj;
+﻿using NetClajServer.Packets.IO;
 
-public class ServerInfoPacket: MindustryPacket
+namespace NetClajServer.Packets.Claj;
+
+public class ServerInfoPacket: MindustryPacket, ISequenceDeserializable
 {
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 20;
@@ -14,6 +16,11 @@ public class ServerInfoPacket: MindustryPacket
     }
 
     public override void Serialize(BinaryWriter writer)
+    {
+        throw new NotImplementedException();
+    }
+
+    public PacketResult TryDeserialize(ref PacketReader reader)
     {
         throw new NotImplementedException();
     }

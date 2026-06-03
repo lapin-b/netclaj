@@ -1,6 +1,8 @@
-﻿namespace NetClajServer.Packets.Framework;
+﻿using NetClajServer.Packets.IO;
 
-public class KeepAlivePacket: MindustryPacket
+namespace NetClajServer.Packets.Framework;
+
+public class KeepAlivePacket: MindustryPacket, ISequenceDeserializable
 {
     public const sbyte Type = PacketType.Framework;
     public const byte Identifier = 2;
@@ -15,5 +17,10 @@ public class KeepAlivePacket: MindustryPacket
     public override void Serialize(BinaryWriter writer)
     {
         // no-op
+    }
+    
+    public PacketResult TryDeserialize(ref PacketReader reader)
+    {
+        return reader.Result;
     }
 }

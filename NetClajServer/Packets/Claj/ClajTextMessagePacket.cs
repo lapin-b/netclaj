@@ -1,8 +1,9 @@
 ﻿using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class ClajTextMessagePacket: MindustryPacket
+public class ClajTextMessagePacket: MindustryPacket, ISequenceDeserializable
 {
     public string Message { get; set; }
     
@@ -20,5 +21,11 @@ public class ClajTextMessagePacket: MindustryPacket
     public override void Serialize(BinaryWriter writer)
     {
         writer.WriteJavaUtf(Message);
+    }
+
+    public PacketResult TryDeserialize(ref PacketReader reader)
+    {
+        Message = reader.ReadJavaUtf(nameof(Message));
+        return reader.Result;
     }
 }

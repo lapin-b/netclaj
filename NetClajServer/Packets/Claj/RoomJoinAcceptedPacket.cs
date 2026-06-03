@@ -1,8 +1,9 @@
 ﻿using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
-public class RoomJoinAcceptedPacket: MindustryPacket
+public class RoomJoinAcceptedPacket: MindustryPacket, ISequenceDeserializable
 {
     public long RoomId { get; set; }
     
@@ -20,5 +21,11 @@ public class RoomJoinAcceptedPacket: MindustryPacket
     public override void Serialize(BinaryWriter writer)
     {
         writer.WriteInt64BigEndian(RoomId);
+    }
+
+    public PacketResult TryDeserialize(ref PacketReader reader)
+    {
+        RoomId = reader.ReadRoomId(nameof(RoomId));
+        return reader.Result;
     }
 }
