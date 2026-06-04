@@ -74,6 +74,7 @@ public partial class Connection
     
     public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
 
+    // TODO: Fast path processing for game packets bypassing the serializer entirely.
     public async Task SendTcp(MindustryPacket packet)
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return;
@@ -83,7 +84,7 @@ public partial class Connection
         
         var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter);
         LogSentBytes("TCP", Id, sendBytes);
-        await _tcpStream.WriteAsync(sendBytes, _cts.Token);
+        await _tcp.Client.SendAsync(sendBytes, _cts.Token);
     }
 
     public async Task SendTcp(List<MindustryPacket> packets)
@@ -95,9 +96,10 @@ public partial class Connection
         
         var sendBytes = Serializer.Serialize(packets, memoryStream, binaryWriter);
         LogSentBytes("TCP bulk", Id, sendBytes);
-        await _tcpStream.WriteAsync(sendBytes, _cts.Token);
+        await _tcp.Client.SendAsync(sendBytes, _cts.Token);
     }
 
+    // TODO: Fast path processing for game packets bypassing the serializer entirely.
     public async Task SendUdp(MindustryPacket packet)
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return;
@@ -138,6 +140,11 @@ public partial class Connection
     {
         _metrics.IncrementIncomingPacketsProcessed();
 
+        /*
+         * TODO: Fast path processing for game packets when the connection is part of a room.
+         * Bypass fetching the game packet handler from the handlers registry.
+         */
+        
         // A player joins the room as a client and will send a few packets that might arrive before the
         // room host is aware of this player. To not lose anything, buffer the game packets until the host
         // is aware of the player.
