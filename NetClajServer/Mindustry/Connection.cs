@@ -17,7 +17,7 @@ namespace NetClajServer.Mindustry;
 
 public partial class Connection
 {
-    private static RecyclableMemoryStreamManager _memoryStreamManager = new();
+    private static readonly RecyclableMemoryStreamManager MemoryStreamManager = new();
     
     public int Id { get; }
     public long? ParticipatesInRoomId { get; set; }
@@ -29,7 +29,6 @@ public partial class Connection
     // Connection related properties
     private readonly TcpClient _tcp;
     private readonly UdpClient _udp;
-    private readonly NetworkStream _tcpStream;
     public IPEndPoint? UdpEndpoint { get; set; }
     public bool IsConnected => _tcp.Connected && UdpEndpoint != null;
 
@@ -64,7 +63,6 @@ public partial class Connection
         _server = server;
         _logger = logger;
         _metrics = metrics;
-        _tcpStream = _tcp.GetStream();
     }
 
     public void Start(CancellationToken serverToken)
@@ -80,7 +78,7 @@ public partial class Connection
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
 
-        using var memoryStream = _memoryStreamManager.GetStream();
+        using var memoryStream = MemoryStreamManager.GetStream();
         using var binaryWriter = new BinaryWriter(memoryStream);
         
         var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter);
@@ -97,7 +95,7 @@ public partial class Connection
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
 
-        using var memoryStream = _memoryStreamManager.GetStream();
+        using var memoryStream = MemoryStreamManager.GetStream();
         using var binaryWriter = new BinaryWriter(memoryStream);
         
         var sendBytes = Serializer.Serialize(packets, memoryStream, binaryWriter);
@@ -203,7 +201,7 @@ public partial class Connection
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
         
-        using var memoryStream = _memoryStreamManager.GetStream();
+        using var memoryStream = MemoryStreamManager.GetStream();
         using var binaryWriter = new BinaryWriter(memoryStream);
         
         var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter, false);
@@ -268,7 +266,7 @@ public partial class Connection
     
     private async Task ReceiveLoop(CancellationToken token)
     {
-        var reader = PipeReader.Create(_tcpStream);
+        var reader = PipeReader.Create(_tcp.GetStream());
 
         try
         {
