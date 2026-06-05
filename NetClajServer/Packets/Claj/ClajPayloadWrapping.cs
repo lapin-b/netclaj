@@ -14,7 +14,7 @@ public class ClajPayloadWrapping: MindustryPacketWithConId
     protected override void TryDeserializeInnerPayload(ref PacketReader reader)
     {
         reader.WithPacketName(nameof(ClajPayloadWrapping));
-        IsTcp = reader.ReadBoolean(nameof(WrappedPacketIsTcp));
+        WrappedPacketIsTcp = reader.ReadBoolean(nameof(WrappedPacketIsTcp));
         Buffer = reader.ReadRest();
     }
 
