@@ -172,9 +172,7 @@ public partial class Room
         }
     }
     
-    public bool HasPlayer(Connection queryConnection) => _players.ContainsKey(queryConnection.Id);
-
-    public async Task HandlePacket(PacketContext context, MindustryPacket mindustryPacket)
+    public Task HandlePacket(PacketContext context, MindustryPacket mindustryPacket)
     {
         // Room host -> specific client
         if (context.Connection.Id == HostConnectionId)
@@ -182,7 +180,7 @@ public partial class Room
             // The host will only see Claj wrapping packets
             if (mindustryPacket is not ClajPayloadWrapping clajWrapper)
             {
-                return;
+                return Task.CompletedTask;
             }
 
             if (_players.TryGetValue(clajWrapper.ConnectionId, out var targetConnection) && targetConnection.IsConnected)
@@ -194,35 +192,32 @@ public partial class Room
                     Buffer = clajWrapper.Buffer
                 };
 
-                var sendTask = clajWrapper.WrappedPacketIsTcp 
+                return clajWrapper.WrappedPacketIsTcp 
                     ? targetConnection.SendTcp(bufferToSend) 
                     : targetConnection.SendUdp(bufferToSend).AsTask();
-
-                await sendTask;
             }
-            else
+
+            // Somehow this connection didn't exist, yet it still "participates" in this room for the host
+            _logger.LogWarning(
+                "Room {Id}: connection {targetId} doesn't exist or is disconnected, yet is still partaking in the room for the host.",
+                Id,
+                clajWrapper.ConnectionId
+            );
+
+            return _host.SendTcp(new ConnectionClosedPacket
             {
-                // Somehow this connection didn't exist, yet it still "participates" in this room for the host
-                _logger.LogWarning(
-                    "Room {Id}: connection {targetId} doesn't exist or is disconnected, yet is still partaking in the room for the host.",
-                    Id,
-                    clajWrapper.ConnectionId
-                );
-
-                await _host.SendTcp(new ConnectionClosedPacket
-                {
-                    ConnectionId = clajWrapper.ConnectionId,
-                    Reason = ArcNetDcReason.Error
-                });
-            }
+                ConnectionId = clajWrapper.ConnectionId,
+                Reason = ArcNetDcReason.Error
+            }).AsTask();
         }
+        
         // Specific client -> room host
-        else if (_host.IsConnected && _players.ContainsKey(context.Connection.Id))
+        if (_host.IsConnected && _players.ContainsKey(context.Connection.Id))
         {
             // Players never see a Claj packet, they only manipulate raw packets
             if (mindustryPacket is not GamePacket raw)
             {
-                return;
+                return Task.CompletedTask;
             }
             
             var clajWrappedGamePacket = new ClajPayloadWrapping
@@ -234,8 +229,10 @@ public partial class Room
             
             LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId);
 
-            await _host.SendTcp(clajWrappedGamePacket);
+            return _host.SendTcp(clajWrappedGamePacket);
         }
+
+        return Task.CompletedTask;
     }
 
     private async Task SendIdleConnectionNotifications()
