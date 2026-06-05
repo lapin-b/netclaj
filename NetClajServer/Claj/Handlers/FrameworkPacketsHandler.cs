@@ -25,7 +25,7 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
         {
             Id = packet.Id,
             IsReply = true
-        }, context.IsTcp);
+        }, context.IsTcp).AsTask();
     }
 
     public Task HandleAsync(PacketContext context, DiscoverHostPacket packet)
@@ -35,12 +35,12 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
             ? Task.CompletedTask
             // The Java implementation just sends the bunch of bytes,skipping the "packet identifier" thing
             // entirely.
-            : context.Connection.SendUdp(HostDiscoveryReply);
+            : context.Connection.SendUdp(HostDiscoveryReply).AsTask();
     }
 
     public Task HandleAsync(PacketContext context, KeepAlivePacket packet)
     {
-        return context.Connection.Send(new KeepAlivePacket(), context.IsTcp);
+        return context.Connection.Send(new KeepAlivePacket(), context.IsTcp).AsTask();
     }
 
     public static bool TryRegisterUdpEndpoint(

@@ -74,35 +74,45 @@ public partial class Connection
         _receiveLoopTask = ReceiveLoop(linked.Token);
     }
     
-    public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
+    public ValueTask Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
 
-    public async Task SendTcp(MindustryPacket packet)
+    public ValueTask SendTcp(MindustryPacket packet)
     {
-        if (Volatile.Read(ref _closeHasStarted) == 1) return;
+        if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
 
-        await using var memoryStream = _memoryStreamManager.GetStream();
-        await using var binaryWriter = new BinaryWriter(memoryStream);
+        using var memoryStream = _memoryStreamManager.GetStream();
+        using var binaryWriter = new BinaryWriter(memoryStream);
         
         var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter);
         LogSentBytes("TCP", Id, sendBytes);
-        await _tcpStream.WriteAsync(sendBytes, _cts.Token);
+        
+        var task = _tcp.Client.SendAsync(sendBytes, _cts.Token);
+        
+        return task.IsCompletedSuccessfully 
+            ? ValueTask.CompletedTask 
+            : new ValueTask(task.AsTask());
     }
 
-    public async Task SendTcp(List<MindustryPacket> packets)
+    public ValueTask SendTcp(List<MindustryPacket> packets)
     {
-        if (Volatile.Read(ref _closeHasStarted) == 1) return;
+        if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
 
-        await using var memoryStream = _memoryStreamManager.GetStream();
-        await using var binaryWriter = new BinaryWriter(memoryStream);
+        using var memoryStream = _memoryStreamManager.GetStream();
+        using var binaryWriter = new BinaryWriter(memoryStream);
         
         var sendBytes = Serializer.Serialize(packets, memoryStream, binaryWriter);
         LogSentBytes("TCP bulk", Id, sendBytes);
-        await _tcpStream.WriteAsync(sendBytes, _cts.Token);
+        
+        var task = _tcp.Client.SendAsync(sendBytes, _cts.Token);
+        
+        return task.IsCompletedSuccessfully 
+            ? ValueTask.CompletedTask 
+            : new ValueTask(task.AsTask());
     }
 
-    public async Task SendTcp(GamePacket packet)
+    public Task SendTcp(GamePacket packet)
     {
-        if(Volatile.Read(ref _closeHasStarted) == 1) return;
+        if(Volatile.Read(ref _closeHasStarted) == 1) return Task.CompletedTask;
 
         var payloadLength = (int)packet.Buffer.Length;
         var lengthHeader = ArrayPool<byte>.Shared.Rent(2);
@@ -124,7 +134,7 @@ public partial class Connection
 
         try
         {
-            await _tcp.Client.SendAsync(segments);
+            return _tcp.Client.SendAsync(segments);
         }
         finally
         {
@@ -132,9 +142,9 @@ public partial class Connection
         }
     }
  
-    public async Task SendTcp(ClajPayloadWrapping packet)
+    public Task SendTcp(ClajPayloadWrapping packet)
     {
-        if(Volatile.Read(ref _closeHasStarted) == 1) return;
+        if(Volatile.Read(ref _closeHasStarted) == 1) return Task.CompletedTask;
         
         /*
          * Payload:
@@ -180,7 +190,7 @@ public partial class Connection
 
         try
         {
-            await _tcp.Client.SendAsync(segments);
+            return _tcp.Client.SendAsync(segments);
         }
         finally
         {
@@ -189,23 +199,32 @@ public partial class Connection
     }
     
     // TODO: Fast path processing for game packets bypassing the serializer entirely.
-    public async Task SendUdp(MindustryPacket packet)
+    public ValueTask SendUdp(MindustryPacket packet)
     {
-        if (Volatile.Read(ref _closeHasStarted) == 1) return;
+        if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
         
-        await using var memoryStream = _memoryStreamManager.GetStream();
-        await using var binaryWriter = new BinaryWriter(memoryStream);
+        using var memoryStream = _memoryStreamManager.GetStream();
+        using var binaryWriter = new BinaryWriter(memoryStream);
         
         var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter, false);
         LogSentBytes("UDP", Id, sendBytes);
-        await _udp.SendAsync(sendBytes, UdpEndpoint, _cts.Token);
+
+        var task = _udp.SendAsync(sendBytes, UdpEndpoint, _cts.Token);
+
+        return task.IsCompletedSuccessfully 
+            ? ValueTask.CompletedTask 
+            : new ValueTask(task.AsTask());
     }
     
-    public async Task SendUdp(ReadOnlyMemory<byte> packet)
+    public ValueTask SendUdp(ReadOnlyMemory<byte> packet)
     {
-        if (Volatile.Read(ref _closeHasStarted) == 1) return;
+        if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
         LogSentBytes("UDP", Id, packet);
-        await _udp.SendAsync(packet, UdpEndpoint, _cts.Token);
+        var task = _udp.SendAsync(packet, UdpEndpoint, _cts.Token);
+
+        return task.IsCompletedSuccessfully 
+            ? ValueTask.CompletedTask 
+            : new ValueTask(task.AsTask());
     }
     
     public async Task SendStreaming(IStreamablePacket packet)

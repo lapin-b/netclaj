@@ -196,7 +196,7 @@ public partial class Room
 
                 var sendTask = clajWrapper.WrappedPacketIsTcp 
                     ? targetConnection.SendTcp(bufferToSend) 
-                    : targetConnection.SendUdp(bufferToSend);
+                    : targetConnection.SendUdp(bufferToSend).AsTask();
 
                 await sendTask;
             }
