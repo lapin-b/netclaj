@@ -14,7 +14,7 @@ public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajP
         _logger = logger;
     }
 
-    public Task HandleAsync(PacketContext context, GamePacket packet)
+    public ValueTask HandleAsync(PacketContext context, GamePacket packet)
     {
         if (context.Connection.ParticipatesInRoomId is not { } participatesInRoomId)
         {
@@ -23,7 +23,7 @@ public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajP
                 "{ConnectionId} is not yet participating in a room and raw packets are already trying to flow through handlers. Dropping",
                 context.Connection.Id
             );
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
 
         if (context.Server.Rooms.TryGetValue(participatesInRoomId, out var room))
@@ -43,21 +43,21 @@ public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajP
         // is when it is pointing to a room that doesn't exist.
         context.Connection.ParticipatesInRoomId = null;
 
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public Task HandleAsync(PacketContext context, ClajPayloadWrapping packet)
+    public ValueTask HandleAsync(PacketContext context, ClajPayloadWrapping packet)
     {
         if (context.Server.FindConnectionInRooms(context.Connection) is not { } room)
         {
             _logger.LogWarning("Connection is partaking in room {roomId} but it doesn't exist", context.Connection.ParticipatesInRoomId);
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
 
         if (context.Connection.Id != room.HostConnectionId)
         {
             _logger.LogWarning("Received a Claj wrapping packet not from room host connection. Dropping");
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
 
         return room.HandlePacket(context, packet);

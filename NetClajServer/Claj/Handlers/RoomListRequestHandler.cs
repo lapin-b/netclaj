@@ -13,7 +13,7 @@ public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
         _logger = logger;
     }
 
-    public async Task HandleAsync(PacketContext context, RoomListRequestPacket packet)
+    public async ValueTask HandleAsync(PacketContext context, RoomListRequestPacket packet)
     {
         var roomList = context.Server.Rooms
             .Values

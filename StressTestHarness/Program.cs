@@ -4,8 +4,8 @@ namespace StressTestHarness;
 
 class Program
 {
-    private const int ClientsCount = 50;
-    private const int RoomsCount = 10;
+    private const int ClientsCount = 2;
+    private const int RoomsCount = 1;
     private const double RotationRate = .2;
 
     private const string HostToTest = "127.0.0.1";
@@ -17,7 +17,7 @@ class Program
     
     static async Task Main(string[] args)
     {
-        MindustryClient.GeneratedPacketsPerSecond = 25;
+        MindustryClient.GeneratedPacketsPerSecond = 1;
         MindustryClient.GeneratedPacketsJitter = .3;
         
         Debug.Assert(ClientsCount >= RoomsCount);

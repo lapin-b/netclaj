@@ -15,7 +15,7 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
         _logger = logger;
     }
 
-    public async Task HandleAsync(PacketContext context, RoomJoinPacket packet)
+    public async ValueTask HandleAsync(PacketContext context, RoomJoinPacket packet)
     {
         var isRequest = packet is RoomJoinRequestPacket;
         var validation = ValidateRequest(context, packet.RoomId, packet.WithPin, packet.Pin, packet.RoomType);
@@ -82,7 +82,7 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
         }
     }
 
-    public Task HandleAsync(PacketContext context, RoomJoinRequestPacket packet) => 
+    public ValueTask HandleAsync(PacketContext context, RoomJoinRequestPacket packet) => 
         HandleAsync(context, packet.AsRoomJoinPacket);
 
     private RoomRejection ValidateRequest(PacketContext context, long roomId, bool reqWithPin, short? reqPin, string reqRoomType)

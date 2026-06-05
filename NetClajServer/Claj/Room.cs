@@ -172,16 +172,14 @@ public partial class Room
         }
     }
     
-    public Task HandlePacket(PacketContext context, MindustryPacket mindustryPacket)
+    public ValueTask HandlePacket(PacketContext context, MindustryPacket mindustryPacket)
     {
         // Room host -> specific client
         if (context.Connection.Id == HostConnectionId)
         {
             // The host will only see Claj wrapping packets
-            if (mindustryPacket is not ClajPayloadWrapping clajWrapper)
-            {
-                return Task.CompletedTask;
-            }
+            if (mindustryPacket is not ClajPayloadWrapping clajWrapper) 
+                return ValueTask.CompletedTask;
 
             if (_players.TryGetValue(clajWrapper.ConnectionId, out var targetConnection) && targetConnection.IsConnected)
             {
@@ -193,8 +191,8 @@ public partial class Room
                 };
 
                 return clajWrapper.WrappedPacketIsTcp 
-                    ? targetConnection.SendTcp(bufferToSend) 
-                    : targetConnection.SendUdp(bufferToSend).AsTask();
+                    ? new ValueTask(targetConnection.SendTcp(bufferToSend)) 
+                    : targetConnection.SendUdp(bufferToSend);
             }
 
             // Somehow this connection didn't exist, yet it still "participates" in this room for the host
@@ -208,7 +206,7 @@ public partial class Room
             {
                 ConnectionId = clajWrapper.ConnectionId,
                 Reason = ArcNetDcReason.Error
-            }).AsTask();
+            });
         }
         
         // Specific client -> room host
@@ -217,7 +215,7 @@ public partial class Room
             // Players never see a Claj packet, they only manipulate raw packets
             if (mindustryPacket is not GamePacket raw)
             {
-                return Task.CompletedTask;
+                return ValueTask.CompletedTask;
             }
             
             var clajWrappedGamePacket = new ClajPayloadWrapping
@@ -229,10 +227,10 @@ public partial class Room
             
             LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId);
 
-            return _host.SendTcp(clajWrappedGamePacket);
+            return new ValueTask(_host.SendTcp(clajWrappedGamePacket));
         }
 
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     private async Task SendIdleConnectionNotifications()

@@ -13,7 +13,7 @@ public class RoomCloseRequestHandler: IPacketHandler<RoomClosureRequestPacket>
         _logger = logger;
     }
 
-    public async Task HandleAsync(PacketContext context, RoomClosureRequestPacket packet)
+    public async ValueTask HandleAsync(PacketContext context, RoomClosureRequestPacket packet)
     {
         if (HandlerUtils.CheckRoomExistenceAndOwnership(context, _logger) is not { } room)
             return;

@@ -13,7 +13,7 @@ public class RoomLeaveHandler: IPacketHandler<ConnectionClosedPacket>
         _logger = logger;
     }
 
-    public async Task HandleAsync(PacketContext context, ConnectionClosedPacket packet)
+    public async ValueTask HandleAsync(PacketContext context, ConnectionClosedPacket packet)
     {
         if (context.Server.FindConnectionInRooms(context.Connection) is not {} room)
         {

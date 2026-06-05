@@ -13,10 +13,10 @@ public class RoomConfigPacketHandler: IPacketHandler<RoomConfigPacket>
         _logger = logger;
     }
 
-    public Task HandleAsync(PacketContext context, RoomConfigPacket packet)
+    public ValueTask HandleAsync(PacketContext context, RoomConfigPacket packet)
     {
         var room = HandlerUtils.CheckRoomExistenceAndOwnership(context, _logger);
-        if (room == null) return Task.CompletedTask;
+        if (room == null) return ValueTask.CompletedTask;
         
         _logger.LogInformation(
             "Set config for {RoomId}. isPublic={isPublic}; isProtected={isProtected} ({Pin}), canQueryHost={canQueryHost}, maxClients={maxClients}",
@@ -30,6 +30,6 @@ public class RoomConfigPacketHandler: IPacketHandler<RoomConfigPacket>
 
         room.Configuration = packet.IntoRoomConfiguration();
         
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 }

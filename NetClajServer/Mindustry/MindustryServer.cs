@@ -19,7 +19,7 @@ public class MindustryServer
     private readonly ConnectionFactory _connectionFactory;
 
     // Packet routing
-    private readonly Dictionary<Type, Func<PacketContext, MindustryPacket, Task>> _router = new();
+    private readonly Dictionary<Type, Func<PacketContext, MindustryPacket, ValueTask>> _router = new();
 
     // Connection accepting
     private readonly TcpListener _tcpListener;
@@ -113,7 +113,7 @@ public class MindustryServer
         cts.Dispose();
     }
 
-    public Task HandleMindustryPacket(Connection connection, MindustryPacket packet)
+    public ValueTask HandleMindustryPacket(Connection connection, MindustryPacket packet)
     {
         if (_cts is null) throw new InvalidOperationException("Server is not started");
 
@@ -131,7 +131,7 @@ public class MindustryServer
         }
         
         _logger.LogDebug("No handler for {packetType}", packet.GetType().Name);
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     public Room? FindConnectionInRooms(Connection connection)

@@ -241,7 +241,7 @@ public partial class Connection
         await tcpSink.Complete(true);
     }
     
-    public Task ProcessDeserializedPacket(MindustryPacket mindustryPacket)
+    public ValueTask ProcessDeserializedPacket(MindustryPacket mindustryPacket)
     {
         _metrics.IncrementIncomingPacketsProcessed();
 
@@ -257,7 +257,7 @@ public partial class Connection
         {
             LogNotYetParticipatingInRoom(Id);
             RawPacketsQueue.Writer.TryWrite(new MaterializedGamePacket(raw));
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
             // ^ The channel handles excess game packets being written and drops them if needed
         }
 
@@ -281,7 +281,10 @@ public partial class Connection
                     var mindustryPacket = Serializer.Deserialize(payload);
                     mindustryPacket.IsTcp = true;
                     DebugRecvPacket(mindustryPacket);
-                    await ProcessDeserializedPacket(mindustryPacket);
+                    
+                    var task = ProcessDeserializedPacket(mindustryPacket);
+                    if (task.IsCompletedSuccessfully) continue;
+                    await task;
                 }
 
                 reader.AdvanceTo(buffer.Start, buffer.End);

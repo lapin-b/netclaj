@@ -18,7 +18,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
         _roomFactory = roomFactory;
     }
 
-    public async Task HandleAsync(PacketContext context, RoomCreationRequestPacket packet)
+    public async ValueTask HandleAsync(PacketContext context, RoomCreationRequestPacket packet)
     {
         if (packet.Version != ServerVersion)
         {

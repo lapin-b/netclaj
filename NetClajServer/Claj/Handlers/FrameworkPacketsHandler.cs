@@ -19,28 +19,28 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
         _logger = logger;
     }
 
-    public Task HandleAsync(PacketContext context, PingPacket packet)
+    public ValueTask HandleAsync(PacketContext context, PingPacket packet)
     {
         return context.Connection.Send(new PingPacket()
         {
             Id = packet.Id,
             IsReply = true
-        }, context.IsTcp).AsTask();
+        }, context.IsTcp);
     }
 
-    public Task HandleAsync(PacketContext context, DiscoverHostPacket packet)
+    public ValueTask HandleAsync(PacketContext context, DiscoverHostPacket packet)
     {
         return context.IsTcp
             // Apparently the discovery packet is sent over UDP ?
-            ? Task.CompletedTask
+            ? ValueTask.CompletedTask
             // The Java implementation just sends the bunch of bytes,skipping the "packet identifier" thing
             // entirely.
-            : context.Connection.SendUdp(HostDiscoveryReply).AsTask();
+            : context.Connection.SendUdp(HostDiscoveryReply);
     }
 
-    public Task HandleAsync(PacketContext context, KeepAlivePacket packet)
+    public ValueTask HandleAsync(PacketContext context, KeepAlivePacket packet)
     {
-        return context.Connection.Send(new KeepAlivePacket(), context.IsTcp).AsTask();
+        return context.Connection.Send(new KeepAlivePacket(), context.IsTcp);
     }
 
     public static bool TryRegisterUdpEndpoint(
