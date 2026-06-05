@@ -3,11 +3,13 @@ using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.IO;
 using NetClajServer.Metrics;
 using NetClajServer.Packets;
+using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
 using NetClajServer.Packets.Streaming;
 
@@ -74,7 +76,6 @@ public partial class Connection
     
     public Task Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
 
-    // TODO: Fast path processing for game packets bypassing the serializer entirely.
     public async Task SendTcp(MindustryPacket packet)
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return;
@@ -84,7 +85,7 @@ public partial class Connection
         
         var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter);
         LogSentBytes("TCP", Id, sendBytes);
-        await _tcp.Client.SendAsync(sendBytes, _cts.Token);
+        await _tcpStream.WriteAsync(sendBytes, _cts.Token);
     }
 
     public async Task SendTcp(List<MindustryPacket> packets)
@@ -96,9 +97,97 @@ public partial class Connection
         
         var sendBytes = Serializer.Serialize(packets, memoryStream, binaryWriter);
         LogSentBytes("TCP bulk", Id, sendBytes);
-        await _tcp.Client.SendAsync(sendBytes, _cts.Token);
+        await _tcpStream.WriteAsync(sendBytes, _cts.Token);
     }
 
+    public async Task SendTcp(GamePacket packet)
+    {
+        if(Volatile.Read(ref _closeHasStarted) == 1) return;
+
+        var payloadLength = (int)packet.Buffer.Length;
+        var lengthHeader = ArrayPool<byte>.Shared.Rent(2);
+        BinaryPrimitives.WriteUInt16BigEndian(lengthHeader, (ushort)payloadLength);
+
+        var segments = new List<ArraySegment<byte>> { new(lengthHeader, 0, 2) };
+
+        foreach (var segment in packet.Buffer)
+        {
+            if (MemoryMarshal.TryGetArray(segment, out var arraySegment))
+            {
+                segments.Add(arraySegment);
+            }
+            else
+            {
+                segments.Add(new ArraySegment<byte>(segment.ToArray()));
+            }
+        }
+
+        try
+        {
+            await _tcp.Client.SendAsync(segments);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(lengthHeader);
+        }
+    }
+ 
+    public async Task SendTcp(ClajPayloadWrapping packet)
+    {
+        if(Volatile.Read(ref _closeHasStarted) == 1) return;
+        
+        /*
+         * Payload:
+         *  Packet header:
+         *      - 2 bytes: packet type and family
+         *      - 4 bytes: connection ID this packet comes from or goes to
+         *      - 1 byte: isTCP flag
+         *  Packet body:
+         *      - n bytes
+         */
+        var preludePacketSize = 2 + 4 + 1 + (int)packet.Buffer.Length;
+        
+        /*
+         * Prelude:
+         * - 2 bytes: payload length
+         * Packet header:
+         * - 2 bytes: packet type and family
+         * - 4 bytes: connection ID this packet came from or goes to
+         * - 1 byte: isTCP flag
+         */
+        var packetBegginingSize = 2 + 2 + 4 + 1;
+        var header = ArrayPool<byte>.Shared.Rent(packetBegginingSize);
+        
+        BinaryPrimitives.WriteUInt16BigEndian(header.AsSpan(0, 2), (ushort)preludePacketSize);
+        header[2] = (byte)packet.GetPacketFamily();
+        header[3] = packet.GetPacketIdentifier();
+        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(4, 4), packet.ConnectionId);
+        header[8] = (byte)(packet.IsTcp ? 1 : 0);
+        
+        var segments = new List<ArraySegment<byte>> { new(header, 0, packetBegginingSize) };
+        
+        foreach (var segment in packet.Buffer)
+        {
+            if (MemoryMarshal.TryGetArray(segment, out var arraySegment))
+            {
+                segments.Add(arraySegment);
+            }
+            else
+            {
+                segments.Add(new ArraySegment<byte>(segment.ToArray()));
+            }
+        }
+
+        try
+        {
+            await _tcp.Client.SendAsync(segments);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(header);
+        }
+    }
+    
     // TODO: Fast path processing for game packets bypassing the serializer entirely.
     public async Task SendUdp(MindustryPacket packet)
     {
@@ -126,7 +215,6 @@ public partial class Connection
             TotalBytes = packet.StreamTotalPacketSize(),
             InnerPacketIdentifier = packet.GetPacketIdentifier(),
             IsCompressed = false
-            // TODO: Implement compression by measuring if the initial payload is compressible or not.
         };
 
         await SendTcp(streamHead);
