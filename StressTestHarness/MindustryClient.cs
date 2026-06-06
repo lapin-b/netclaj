@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace StressTestHarness;
@@ -216,7 +217,7 @@ public class MindustryClient
             {
                 var packetLength = (_buffer[_bufferPosition] << 8) | _buffer[_bufferPosition + 1];
 
-                if (packetLength is < 0 or > 7 * 1024)
+                if (packetLength is < 0 or > 8 * 1024)
                 {
                     throw new InvalidDataException($"Invalid frame length {packetLength}");
                 }
@@ -254,8 +255,11 @@ public class MindustryClient
         try
         {
             BinaryPrimitives.WriteInt16BigEndian(header.AsSpan()[..2], (short)rawBytes.Length);
-            await _netStream.WriteAsync(header.AsMemory()[..2], ct);
-            await _netStream.WriteAsync(rawBytes, ct);   
+            
+            var segments = new ArraySegment<byte>[2];
+            segments[0] = new ArraySegment<byte>(header, 0, 2);
+            segments[1] = MemoryMarshal.TryGetArray(rawBytes, out var bytesSegment) ? bytesSegment : rawBytes.ToArray();
+            await _client.Client.SendAsync(segments);
         }
         finally
         {
