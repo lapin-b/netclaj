@@ -139,7 +139,7 @@ public class MindustryServer
         return connection.ParticipatesInRoomId is { } participatesInRoomId 
                && Rooms.TryGetValue(participatesInRoomId, out var room) 
             ? room
-            : null;        
+            : null;
     }
 
     public async Task NotifyConnectionClosure(Connection connection, ArcNetDcReason? reason)
@@ -214,24 +214,11 @@ public class MindustryServer
         while (!ct.IsCancellationRequested)
         {
             UdpReceiveResult message;
+            MindustryPacket packet;
+            
             try
             {
                 message = await _udpListener.ReceiveAsync(ct);
-            }
-            catch (Exception e)
-            {
-                if (IsServerShutdownRequested(e, ct))
-                {
-                    break;
-                }
-
-                _logger.LogError(e, "And UDP decided to party");
-                throw;
-            }
-
-            MindustryPacket packet;
-            try
-            {
                 // An UDP packet has no length prefix, no need to strip it from the buffer
                 packet = Serializer.Deserialize(message.Buffer);
                 packet.IsTcp = false;
@@ -244,7 +231,12 @@ public class MindustryServer
             }
             catch (Exception e)
             {
-                _logger.LogWarning(e, "Exception while processing UDP packet");
+                if (IsServerShutdownRequested(e, ct))
+                {
+                    break;
+                }
+
+                _logger.LogWarning(e, "Error while receiving UDP trafic");
                 continue;
             }
             
@@ -262,7 +254,9 @@ public class MindustryServer
                 if (FrameworkPacketsHandler.TryRegisterUdpEndpoint(this, message.RemoteEndPoint, registerUdpPacket, out var connection))
                 {
                     _udpEndPointsToConnection.TryAdd(message.RemoteEndPoint, connection.Id);
-                    await connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
+                    var sendRegisterUdpTask = connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
+                    if (sendRegisterUdpTask.IsCompletedSuccessfully) continue;
+                    await sendRegisterUdpTask;
                 }
                 
                 continue;
@@ -277,7 +271,9 @@ public class MindustryServer
                 continue;
             }
 
-            await fromConnection.ProcessDeserializedPacket(packet);
+            var processingTask = fromConnection.ProcessDeserializedPacket(packet);
+            if (processingTask.IsCompletedSuccessfully) continue;
+            await processingTask;
         }
         
         _udpListener.Close();
