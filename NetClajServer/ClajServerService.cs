@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using NetClajServer.Datastructures;
 using NetClajServer.Mindustry;
 
-namespace NetClajServer.Packets;
+namespace NetClajServer;
 
 public class ClajServerService: IHostedService
 {

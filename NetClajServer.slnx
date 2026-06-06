@@ -2,7 +2,6 @@
   <Folder Name="/Files/">
     <File Path=".gitignore" />
   </Folder>
-  <Project Path="Benchmark/Benchmark.csproj" />
   <Project Path="NetClajServer/NetClajServer.csproj" />
   <Project Path="StressTestHarness/StressTestHarness.csproj" />
 </Solution>
