@@ -11,7 +11,7 @@ namespace StressTestHarness;
 public class MindustryClient
 {
     private const string RoomType = "Randustry";
-    public static int GeneratedPacketsPerSecond = 15;
+    public static int GeneratedPacketsPerSecond = 25;
     public static double GeneratedPacketsJitter = .3;
     private static readonly byte[] PatternFill = "Random bullshit go !"u8.ToArray();
     private static readonly int PatternFillLength = PatternFill.Length;

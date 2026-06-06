@@ -1,15 +1,15 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Extensions.Configuration;
 
 namespace StressTestHarness;
 
 class Program
 {
-    private const int ClientsCount = 2;
-    private const int RoomsCount = 1;
-    private const double RotationRate = .2;
+    private static int _clientsCount;
+    private static int _roomsCount;
+    private const double RotationRate = 0.1;
 
-    private const string HostToTest = "127.0.0.1";
-    private const int HostPortTotest = 7000;
+    private static string _hostToTest = "127.0.0.1";
+    private static int _hostPortTotest = 7000;
 
     private static readonly CancellationTokenSource GlobalCancel = new();
     private static readonly List<MindustryClient> Clients = [];
@@ -17,16 +17,44 @@ class Program
     
     static async Task Main(string[] args)
     {
-        MindustryClient.GeneratedPacketsPerSecond = 1;
-        MindustryClient.GeneratedPacketsJitter = .3;
+        var environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production";
+
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", true)
+            .AddJsonFile($"appsettings.{environment}.json", true)
+            .Build();
+
+        _hostToTest = configuration.GetValue<string>("Host") ?? 
+                     throw new Exception("Missing [Host] configuration key");
+        _hostPortTotest = configuration.GetValue<int?>("Port") ?? 
+                         throw new Exception("Missing [Port] configuration key");
+        var stressProfile = args[0];
+        var profileConfiguration = configuration
+            .GetRequiredSection("StressProfiles")
+            .GetSection(stressProfile)
+            .Get<StressConfiguration>();
+
+        if (profileConfiguration == null)
+        {
+            Console.WriteLine($"Stress configuration profile {stressProfile} doesn't exist or has an invalid shape");
+            return;
+        }
+
+        if (profileConfiguration.Clients < profileConfiguration.Rooms)
+        {
+            Console.WriteLine("Rooms count cannot be larger than clients count");
+            return;
+        }
+
+        _clientsCount = profileConfiguration.Clients;
+        _roomsCount = profileConfiguration.Rooms;
         
-        Debug.Assert(ClientsCount >= RoomsCount);
         Console.CancelKeyPress += new ConsoleCancelEventHandler(HandleCancellation());
         
         Console.WriteLine("Connecting and handshaking");
-        for (var i = 0; i < ClientsCount; i++)
+        for (var i = 0; i < _clientsCount; i++)
         {
-            var client = await CreateConnection(HostToTest, HostPortTotest, i < RoomsCount);
+            var client = await CreateConnection(_hostToTest, _hostPortTotest, i < _roomsCount);
             Clients.Add(client);
 
             if (client.IsHost)
@@ -49,7 +77,7 @@ class Program
         _ = RotateClientRoomsLoop();
         
         GlobalCancel.Token.WaitHandle.WaitOne();
-        Console.WriteLine("Closing connections (and it's fine if we can't clean everything I guess)");
+        Console.WriteLine("Closing connections");
         foreach (var client in Clients)
         {
             client.Stop();
@@ -80,7 +108,7 @@ class Program
                 ct.ThrowIfCancellationRequested();
 
                 connection.Stop();
-                var newConnection = await CreateConnection(HostToTest, HostPortTotest, false);
+                var newConnection = await CreateConnection(_hostToTest, _hostPortTotest, false);
                 var roomIdToJoin = Random.Shared.RandomItemInList(RoomIds);
                 await newConnection.JoinRoom(roomIdToJoin);
 
