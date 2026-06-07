@@ -199,7 +199,6 @@ public partial class Connection
         }
     }
     
-    // TODO: Fast path processing for game packets bypassing the serializer entirely.
     public ValueTask SendUdp(MindustryPacket packet)
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
@@ -271,9 +270,9 @@ public partial class Connection
     {
         var reader = PipeReader.Create(_tcp.GetStream());
 
-        try
+        while (!token.IsCancellationRequested)
         {
-            while (!token.IsCancellationRequested)
+            try
             {
                 var pipeRead = await reader.ReadAsync(token);
                 var buffer = pipeRead.Buffer;
@@ -284,7 +283,7 @@ public partial class Connection
                     var mindustryPacket = Serializer.Deserialize(payload);
                     mindustryPacket.TransportIsTcp = true;
                     DebugRecvPacket(mindustryPacket);
-                    
+
                     var task = ProcessDeserializedPacket(mindustryPacket);
                     if (task.IsCompletedSuccessfully) continue;
                     await task;
@@ -294,34 +293,57 @@ public partial class Connection
 
                 if (pipeRead.IsCompleted)
                 {
+                    RequestClose(ArcNetDcReason.Closed);
                     break; // connection end
                 }
             }
-        }
-        catch (OperationCanceledException e)
-        {
-            if (!_cts.IsCancellationRequested)
+            catch (OperationCanceledException e) when (!_cts.IsCancellationRequested)
             {
-                _logger.LogWarning(e, "Task cancellation caught. This must have bubbled up the stack");
+                _logger.LogWarning(e, "OperationCanceledException caught. This must have bubbled up the stack");
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("{@Connection} canceled. Closing", this);
+                RequestClose(ArcNetDcReason.Closed);
+                break;
+            }
+            catch (SocketException) when (token.IsCancellationRequested)
+            {
+                RequestClose(ArcNetDcReason.Closed);
+                break;
+            }
+            // Exception while sending things in the handlers
+            catch (SocketException e) when (e.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionAborted)
+            {
+                HandleConnectionReset();
+                break;
+            }
+            // Exception when reading from the pipe is not possible
+            catch (IOException e) when (e.GetBaseException() is SocketException { SocketErrorCode: SocketError.ConnectionReset or SocketError.ConnectionAborted })
+            {
+                HandleConnectionReset();
+                break;
+            }
+            catch (IOException e)
+            {
+                _logger.LogWarning(e, "IOException while processing a TCP packet for {@Connection}", this);
+                RequestClose(ArcNetDcReason.Error);
+                break;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "{@Connection} something blew up", this);
+                RequestClose(ArcNetDcReason.Error);
+                break;
             }
         }
-        catch (IOException e)
+
+        return;
+        
+        void HandleConnectionReset()
         {
-            // Remote side broke the connection or something
-            _logger.LogWarning(e, "{ConnectionID} Remote closed the connection (IOException)", Id);
-        }
-        catch (SocketException e) when (token.IsCancellationRequested)
-        {
-            // Whatever happens if the socket blows up in the process of shutting down this connection
-            _logger.LogWarning(e, "{ConnectionID} Something blew up in the process of shutting down", Id);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "{ConnectionId} something blew up", Id);
-        }
-        finally
-        {
-            RequestClose(ArcNetDcReason.Error);
+            _logger.LogInformation("Connection {@Connection} has been reset", this);
+            RequestClose(ArcNetDcReason.Closed);
         }
     }
     
@@ -340,10 +362,9 @@ public partial class Connection
     {
         try
         {
+            await _sessionsManager.CleanupConnectionState(this, _closureReason);
             try { await _receiveLoopTask; }
             catch { /* no-op */ }
-
-            await _sessionsManager.CleanupConnectionState(this, _closureReason);
         }
         finally
         {

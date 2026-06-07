@@ -133,16 +133,20 @@ public class MindustryServer
                 client = await _tcpListener.AcceptTcpClientAsync(ct);
                 client.NoDelay = true;
             }
+            catch (SocketException e)
+            {
+                _logger.LogError(e, "SocketException while accepting a connection");
+                break;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("TCP: Server shutdown requested");
+                break;
+            }
             catch (Exception e)
             {
-                if (IsServerShutdownRequested(e, ct))
-                {
-                    break;
-                }
-                
-                _logger.LogError(e, "And boom");
-
-                throw;
+                _logger.LogError(e, "Error while accepting connections");
+                break;
             }
             
             var connection = _sessionsManager.CreateAndStartConnection(
@@ -166,61 +170,57 @@ public class MindustryServer
         {
             UdpReceiveResult message;
             MindustryPacket packet;
-            
+
             try
             {
                 message = await _udpListener.ReceiveAsync(ct);
                 // An UDP packet has no length prefix, no need to strip it from the buffer
                 packet = Serializer.Deserialize(message.Buffer);
                 packet.TransportIsTcp = false;
+                
+                // Handle the register UDP packet here instead of looping through every connection and have them
+                // handle it.
+                if (packet is RegisterUdpPacket registerUdpPacket)
+                {
+                    // Binding an UDP endpoint to a TCP connection many times is unsupported by design. The original
+                    // network engine (`arc.net` in Mindustry) doesn't seem to support this case.
+                    if (_sessionsManager.TryRegisterUdpEndpointToConnection(message.RemoteEndPoint, registerUdpPacket.ConnectionId, out var connection))
+                    {
+                        var sendRegisterUdpTask = connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
+                        if (sendRegisterUdpTask.IsCompletedSuccessfully) continue;
+                        await sendRegisterUdpTask;
+                    }
+                
+                    continue;
+                }
+
+                if (_sessionsManager.GetConnectionByUdpEndpoint(message.RemoteEndPoint) is not { } fromConnection)
+                {
+                    continue;
+                }
+
+                var processingTask = fromConnection.ProcessDeserializedPacket(packet);
+                if (processingTask.IsCompletedSuccessfully) continue;
+                await processingTask;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("UDP: Server shutdown requested");
+                break;
+            }
+            catch (SocketException e) when (e.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionAborted)
+            {
+                // no-op
+            }
+            catch (SocketException e)
+            {
+                _logger.LogWarning(e, "Error while processing an UDP payload");
             }
             // We don't care about a malformed packet, we just keep on going
             catch (SerializerException)
             {
                 // no-op
-                continue;
             }
-            catch (Exception e)
-            {
-                if (IsServerShutdownRequested(e, ct))
-                {
-                    break;
-                }
-
-                _logger.LogWarning(e, "Error while receiving UDP trafic");
-                continue;
-            }
-            
-            if (_logger.IsEnabled(LogLevel.Debug))
-            {
-                _logger.LogDebug("Received UDP bytes {buffer}", message.Buffer);
-            }
-            
-            // Handle the register UDP packet here instead of looping through every connection and have them
-            // handle it.
-            if (packet is RegisterUdpPacket registerUdpPacket)
-            {
-                // Binding an UDP endpoint to a TCP connection many times is unsupported by design. The original
-                // network engine (`arc.net` in Mindustry) doesn't seem to support this case.
-                if (_sessionsManager.TryRegisterUdpEndpointToConnection(message.RemoteEndPoint, registerUdpPacket.ConnectionId, out var connection))
-                {
-                    var sendRegisterUdpTask = connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
-                    if (sendRegisterUdpTask.IsCompletedSuccessfully) continue;
-                    await sendRegisterUdpTask;
-                }
-                
-                continue;
-            }
-
-            if (_sessionsManager.GetConnectionByUdpEndpoint(message.RemoteEndPoint) is not { } fromConnection)
-            {
-                _logger.LogWarning("UDP Endpoint {Endpoint} has no corresponding connection", message.RemoteEndPoint);
-                continue;
-            }
-
-            var processingTask = fromConnection.ProcessDeserializedPacket(packet);
-            if (processingTask.IsCompletedSuccessfully) continue;
-            await processingTask;
         }
         
         _udpListener.Close();
@@ -232,19 +232,5 @@ public class MindustryServer
         // Caching a delegate calling a handler like this is fine because they're all singletons.
         var handler = provider.GetRequiredService<IPacketHandler<TPacket>>();
         _router[typeof(TPacket)] = (context, packet) => handler.HandleAsync(context, (TPacket)packet);
-    }
-
-    private static bool IsServerShutdownRequested(Exception e, CancellationToken ct)
-    {
-        if (
-            e is not OperationCanceledException
-            && e is not ObjectDisposedException
-            && e is not SocketException
-        )
-        {
-            return false;
-        }
-
-        return ct.IsCancellationRequested;
     }
 }
