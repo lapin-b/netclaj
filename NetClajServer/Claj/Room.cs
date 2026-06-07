@@ -32,6 +32,7 @@ public partial class Room
         set
         {
             field = value;
+            _stateLastReceivedAt = DateTime.Now;
             Volatile.Read(ref _stateResponseReceived)?.TrySetResult();
         }
     } = [];
@@ -49,7 +50,9 @@ public partial class Room
     // Sending idle connection notifications continuously
     private readonly List<MindustryPacket> _preparedIdlingPackets = [];
     
+    // Relay querying state from the room host
     private TaskCompletionSource? _stateResponseReceived;
+    private DateTime? _stateLastReceivedAt;
     
     public Room(long roomId, Connection host, string roomType, ILogger<Room> logger)
     {
@@ -116,6 +119,11 @@ public partial class Room
     public async Task RequestRoomState(int requestTimeoutSeconds, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+
+        if (DateTime.Now - _stateLastReceivedAt < Constants.RoomStateFreshnessDuration)
+        {
+            return;
+        }
 
         var existing = Volatile.Read(ref _stateResponseReceived);
         // A room state request is already pending
