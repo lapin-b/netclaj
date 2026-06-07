@@ -14,7 +14,7 @@ public class ProcessedPacketsRateUpdater: BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var timer = new PeriodicTimer(new TimeSpan(0, 0, UpdateInterval));
+        using var timer = new PeriodicTimer(new TimeSpan(0, 0, UpdateInterval));
         
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
