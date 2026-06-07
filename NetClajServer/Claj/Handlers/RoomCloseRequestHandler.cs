@@ -15,7 +15,7 @@ public class RoomCloseRequestHandler: IPacketHandler<RoomClosureRequestPacket>
 
     public async ValueTask HandleAsync(PacketContext context, RoomClosureRequestPacket packet)
     {
-        if (context.Sessions.CheckRoomExistenceAndOwnership(context, _logger) is not { } room)
+        if (context.Sessions.CheckRoomExistenceAndOwnership(context.Connection) is not { } room)
             return;
 
         _logger.LogInformation("Closing room {roomId} because host closed it", room.Id);

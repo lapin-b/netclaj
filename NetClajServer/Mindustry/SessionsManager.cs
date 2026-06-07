@@ -155,24 +155,24 @@ public class SessionsManager
         await room.Close();
     }
     
-    public Room? CheckRoomExistenceAndOwnership(PacketContext context, ILogger logger)
+    public Room? CheckRoomExistenceAndOwnership(Connection connection)
     {
-        if (context.Connection.ParticipatesInRoomId is not { } roomToFetch)
+        if (connection.ParticipatesInRoomId is not { } roomToFetch)
         {
-            logger.LogWarning("Connection {connectionID} is not bound to a room", context.Connection.Id);
+            _logger.LogWarning("Connection {@Connection} is not bound to a room", connection);
             return null;
         }
 
-        if (!_rooms.TryGetValue(roomToFetch, out var room))
+        if (GetRoom(roomToFetch) is not {} room)
         {
             // This shouldn't happen if the room registry is kept up to date
-            logger.LogError("Room {roomId} doesn't exist", roomToFetch);
+            _logger.LogError("Room {roomId} doesn't exist", roomToFetch);
             return null;
         }
         
-        if (context.Connection.Id != room.HostConnectionId)
+        if (connection.Id != room.HostConnectionId)
         {
-            logger.LogWarning("Connection {connectionId} isn't the room owner of room {roomId}", context.Connection.Id, roomToFetch);
+            _logger.LogWarning("Connection {@Connection} isn't the room owner of room {@Room}", connection, room);
             return null;
         }
 

@@ -16,7 +16,7 @@ public class RoomStateHandler: IPacketHandler<RoomStatePacket>
 
     public ValueTask HandleAsync(PacketContext context, RoomStatePacket packet)
     {
-        if(context.Sessions.CheckRoomExistenceAndOwnership(context, _logger) is not { } room)
+        if(context.Sessions.CheckRoomExistenceAndOwnership(context.Connection) is not { } room)
             return ValueTask.CompletedTask;
         
         _logger.LogInformation("Setting room {roomId} state", room.Id);
