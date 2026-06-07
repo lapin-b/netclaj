@@ -150,18 +150,19 @@ public class MindustryServer
 
                 throw;
             }
-
-            var connection = _connectionFactory.Create(
+            
+            var connection = _sessionsManager.CreateAndStartConnection(
                 client,
                 _udpListener,
-                _sessionsManager,
                 this,
-                _sessionsManager.ConnectionIdExists
+                ct
             );
             
             _logger.LogInformation("Client {@Connection} connected", connection);
-            _sessionsManager.AddAndStartConnection(connection, ct);
-            await connection.SendTcp(new RegisterTcpPacket { ConnectionId = connection.Id });
+            
+            var task = connection.SendTcp(new RegisterTcpPacket { ConnectionId = connection.Id });
+            if (task.IsCompletedSuccessfully) continue;
+            await task;
         }
     }
 

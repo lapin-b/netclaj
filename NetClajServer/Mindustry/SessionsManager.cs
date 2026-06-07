@@ -2,6 +2,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Claj;
 using NetClajServer.Claj.PacketHandling;
@@ -12,26 +13,57 @@ namespace NetClajServer.Mindustry;
 public class SessionsManager
 {
     private readonly ILogger<SessionsManager> _logger;
-    
+    private readonly ConnectionFactory _connectionFactory;
+    private readonly RoomFactory _roomFactory;
+
     private readonly ConcurrentDictionary<int, Connection> _connections = new();
     private readonly ConcurrentDictionary<IPEndPoint, int> _udpEndpointToConnectionId = new();
     private readonly ConcurrentDictionary<long, Room> _rooms = new();
 
     public ReadOnlyDictionary<long, Room> Rooms => _rooms.AsReadOnly();
     
-    public SessionsManager(ILogger<SessionsManager> logger)
+    public SessionsManager(
+        ILogger<SessionsManager> logger, 
+        ConnectionFactory connectionFactory,
+        RoomFactory roomFactory)
     {
         _logger = logger;
+        _connectionFactory = connectionFactory;
+        _roomFactory = roomFactory;
     }
 
     // Connection handling
     
-    public void AddAndStartConnection(Connection connection, CancellationToken serverToken)
+    public Connection CreateAndStartConnection(
+        TcpClient tcpEndpoint,
+        UdpClient udpEndpoint,
+        MindustryServer server,
+        CancellationToken serverToken)
     {
+        var connection = _connectionFactory.Create(
+            tcpEndpoint,
+            udpEndpoint,
+            this,
+            server,
+            ConnectionIdExists
+        );
+        
         _connections.TryAdd(connection.Id, connection);
         connection.Start(serverToken);
+
+        return connection;
     }
 
+    public Connection? GetConnectionByUdpEndpoint(IPEndPoint endpoint)
+    {
+        return _udpEndpointToConnectionId.TryGetValue(endpoint, out var connectionId)
+               && _connections.TryGetValue(connectionId, out var connection)
+            ? connection
+            : null;
+    }
+
+    public Connection? GetConnectionById(int connectionId) => _connections.TryGetValue(connectionId, out var connection) ? connection : null;
+    
     public bool TryRegisterUdpEndpointToConnection(
         IPEndPoint endpoint, 
         int connectionId,
@@ -60,16 +92,6 @@ public class SessionsManager
 
         return true;
     }
-
-    public Connection? GetConnectionByUdpEndpoint(IPEndPoint endpoint)
-    {
-        return _udpEndpointToConnectionId.TryGetValue(endpoint, out var connectionId)
-               && _connections.TryGetValue(connectionId, out var connection)
-            ? connection
-            : null;
-    }
-
-    public Connection? GetConnectionById(int connectionId) => _connections.TryGetValue(connectionId, out var connection) ? connection : null;
     
     public async Task CleanupConnectionState(Connection connection, ArcNetDcReason? disconnectReason)
     {
@@ -101,22 +123,30 @@ public class SessionsManager
         }
     }
     
-    public Room? FindConnectionInRooms(Connection connection)
-    {
-        return connection.ParticipatesInRoomId is { } participatesInRoomId 
-               && _rooms.TryGetValue(participatesInRoomId, out var room) 
-            ? room
-            : null;
-    }
-    
     // Room handling
+    
+    public Room CreateRoom(Connection host, string roomType)
+    {
+        var room = _roomFactory.Create(
+            host,
+            roomType,
+            RoomIdExists
+        );
+        
+        _rooms.TryAdd(room.Id, room);
+
+        return room;
+    }
     
     public Room? GetRoom(long roomId) => _rooms.TryGetValue(roomId, out var room) ? room : null;
     
-    public void AddRoom(Room room)
-    {
-        _rooms.TryAdd(room.Id, room);
-    }
+    public Room? FindConnectionInRooms(Connection connection)
+        {
+            return connection.ParticipatesInRoomId is { } participatesInRoomId 
+                   && _rooms.TryGetValue(participatesInRoomId, out var room) 
+                ? room
+                : null;
+        }
     
     public async Task CloseRoom(long roomId)
     {
@@ -161,6 +191,6 @@ public class SessionsManager
         _rooms.Clear();
     }
     
-    public bool ConnectionIdExists(int id) => _connections.ContainsKey(id);
-    public bool RoomIdExists(long id) => _rooms.ContainsKey(id);
+    private bool ConnectionIdExists(int id) => _connections.ContainsKey(id);
+    private bool RoomIdExists(long id) => _rooms.ContainsKey(id);
 }
