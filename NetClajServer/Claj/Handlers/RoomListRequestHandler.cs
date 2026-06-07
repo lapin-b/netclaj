@@ -24,12 +24,12 @@ public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
             .Where(r => r.Configuration is { IsPublic: true, CanRequestHostState: true })
             .ToList();
 
-        using var globalTimeoutToken = new CancellationTokenSource(5000);
+        using var globalTimeoutToken = new CancellationTokenSource(Constants.RoomStateQueryGlobalTimeout);
         var roomListRequestTasks = roomList.Select(async r =>
         {
             try
             {
-                await r.RequestRoomState(5, globalTimeoutToken.Token);
+                await r.RequestRoomState(Constants.RoomStateQueryTimeout, globalTimeoutToken.Token);
             }
             catch (OperationCanceledException)
             {
@@ -37,11 +37,18 @@ public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
             }
             catch(Exception e)
             {
-                _logger.LogError(e, "Couldn't query room state for {roomId}", r.Id);
+                _logger.LogError(e, "Couldn't query room state for {@room}", r);
             }
         }).ToArray();
 
-        await Task.WhenAll(roomListRequestTasks);
+        try
+        {
+            await Task.WhenAll(roomListRequestTasks);
+        }
+        catch (OperationCanceledException)
+        {
+            // no-op
+        }
 
         var replyPacket = new RoomListPacket
         {
