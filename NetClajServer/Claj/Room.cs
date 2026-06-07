@@ -222,7 +222,7 @@ public partial class Room
             {
                 ConnectionId = context.Connection.Id,
                 Buffer = raw.Buffer,
-                WrappedPacketIsTcp = context.IsTcp
+                WrappedPacketIsTcp = raw.TransportIsTcp
             };
             
             LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId);

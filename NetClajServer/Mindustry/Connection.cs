@@ -173,7 +173,7 @@ public partial class Connection
         header[2] = (byte)packet.GetPacketFamily();
         header[3] = packet.GetPacketIdentifier();
         BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(4, 4), packet.ConnectionId);
-        header[8] = (byte)(packet.IsTcp ? 1 : 0);
+        header[8] = (byte)(packet.TransportIsTcp ? 1 : 0);
         
         var segments = new List<ArraySegment<byte>> { new(header, 0, packetBegginingSize) };
         
@@ -282,7 +282,7 @@ public partial class Connection
                 {
                     DebugRecvBytes(payload);
                     var mindustryPacket = Serializer.Deserialize(payload);
-                    mindustryPacket.IsTcp = true;
+                    mindustryPacket.TransportIsTcp = true;
                     DebugRecvPacket(mindustryPacket);
                     
                     var task = ProcessDeserializedPacket(mindustryPacket);

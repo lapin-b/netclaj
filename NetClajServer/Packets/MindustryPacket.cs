@@ -11,7 +11,7 @@ public abstract class MindustryPacket
     /// <summary>
     /// Indicate if the packet arrived on the TCP transport or not. True for TCP, false for UDP
     /// </summary>
-    public bool IsTcp { get; set; } = true;
+    public bool TransportIsTcp { get; set; } = true;
     
     /// <summary>
     /// Get the family of this packet. See <see cref="PacketType"/>.

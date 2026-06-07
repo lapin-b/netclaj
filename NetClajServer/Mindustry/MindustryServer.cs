@@ -113,7 +113,6 @@ public class MindustryServer
         {
             Connection = connection,
             CancellationToken = _cts.Token,
-            IsTcp = packet.IsTcp
         };
         
         if (_router.TryGetValue(packet.GetType(), out var handler))
@@ -173,7 +172,7 @@ public class MindustryServer
                 message = await _udpListener.ReceiveAsync(ct);
                 // An UDP packet has no length prefix, no need to strip it from the buffer
                 packet = Serializer.Deserialize(message.Buffer);
-                packet.IsTcp = false;
+                packet.TransportIsTcp = false;
             }
             // We don't care about a malformed packet, we just keep on going
             catch (SerializerException)

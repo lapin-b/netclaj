@@ -9,7 +9,7 @@ public class MaterializedGamePacket: GamePacket
     
     public MaterializedGamePacket(GamePacket packet)
     {
-        IsTcp = packet.IsTcp;
+        TransportIsTcp = packet.TransportIsTcp;
         Buffer = packet.Buffer.ToArray();
     }
 

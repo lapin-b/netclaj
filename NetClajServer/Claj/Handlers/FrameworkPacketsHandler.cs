@@ -19,12 +19,12 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
         {
             Id = packet.Id,
             IsReply = true
-        }, context.IsTcp);
+        }, packet.TransportIsTcp);
     }
 
     public ValueTask HandleAsync(PacketContext context, DiscoverHostPacket packet)
     {
-        return context.IsTcp
+        return packet.TransportIsTcp
             // Apparently the discovery packet is sent over UDP ?
             ? ValueTask.CompletedTask
             // The Java implementation just sends the bunch of bytes,skipping the "packet identifier" thing
@@ -34,6 +34,6 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
 
     public ValueTask HandleAsync(PacketContext context, KeepAlivePacket packet)
     {
-        return context.Connection.Send(new KeepAlivePacket(), context.IsTcp);
+        return context.Connection.Send(new KeepAlivePacket(), packet.TransportIsTcp);
     }
 }
