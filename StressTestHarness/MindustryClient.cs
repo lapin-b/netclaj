@@ -117,7 +117,28 @@ public class MindustryClient
 
         while (!ct.IsCancellationRequested)
         {
-            var frame = await ReadOneFrame();
+            byte[] frame;
+            try
+            {
+                frame = await ReadOneFrame();
+            }
+            catch (SocketException e) when (e.SocketErrorCode is SocketError.ConnectionReset
+                                                or SocketError.ConnectionAborted)
+            {
+                Console.WriteLine(ConnectionId + " connection was reset while reading");
+                Stop();
+                break;
+            }
+            catch (OperationCanceledException)
+            {
+                // no-op, we don't care
+                break;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(ConnectionId + " " + e);
+                break;
+            }
 
             if (IsHost && frame[0] == 0xFC)
             {
@@ -155,7 +176,19 @@ public class MindustryClient
         {
             // That's all the receive loop does. Empty buffers because we don't
             // care about what's actually transmitted on the line.
-            await _udpClient.ReceiveAsync(ct);
+            try
+            {
+                await _udpClient.ReceiveAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                // no-op, we don't care
+            }
+            catch
+            {
+                // no-op
+                break;
+            }
         }
     }
 
@@ -255,11 +288,21 @@ public class MindustryClient
         try
         {
             BinaryPrimitives.WriteInt16BigEndian(header.AsSpan()[..2], (short)rawBytes.Length);
-            
+
             var segments = new ArraySegment<byte>[2];
             segments[0] = new ArraySegment<byte>(header, 0, 2);
             segments[1] = MemoryMarshal.TryGetArray(rawBytes, out var bytesSegment) ? bytesSegment : rawBytes.ToArray();
             await _client.Client.SendAsync(segments);
+        }
+        catch (OperationCanceledException)
+        {
+            // no-op, we don't care
+        }
+        catch (SocketException e) when (e.SocketErrorCode is SocketError.ConnectionReset
+                                            or SocketError.ConnectionAborted)
+        {
+            Console.WriteLine(ConnectionId + " connection reset while sending stuff");
+            Stop();
         }
         finally
         {
