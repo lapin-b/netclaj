@@ -31,6 +31,8 @@ class Program
             .ReadFrom.Configuration(hostBuilder.Configuration)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
             .MinimumLevel.Override("System", LogEventLevel.Information)
+            .Destructure.ByTransforming<Connection>(c => c.Id)
+            .Destructure.ByTransforming<Room>(r => r.Id)
             .CreateLogger();
         Log.Logger = defaultLogger;
         
@@ -59,6 +61,7 @@ class Program
                 return config ?? throw new Exception("Can't read ClajServer configuration");
             })
             .AddSingleton<ServerMetrics>()
+            .AddSingleton<SessionsManager>()
             
             // These handlers implement multiple interfaces and should point to the same object
             .AddSingleton<FrameworkPacketsHandler>()

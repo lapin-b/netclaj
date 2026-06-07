@@ -37,7 +37,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
 
         if (
             context.Connection.ParticipatesInRoomId is { } roomId
-            && context.Server.Rooms.TryGetValue(roomId, out var existingRoom)
+            && context.Sessions.GetRoom(roomId) is { } existingRoom
             && existingRoom.HostConnectionId == context.Connection.Id
         )
         {
@@ -58,11 +58,11 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
 
         var room = _roomFactory.Create(
             context.Connection, packet.RoomType,
-            id => context.Server.Rooms.ContainsKey(id)
+            context.Sessions.RoomIdExists
         );
         
-        _logger.LogInformation("Created room {roomId} ({roomIdStr}) for host {connectionId}", room.Id, room.IdString, context.Connection.Id);
-        context.Server.Rooms.TryAdd(room.Id, room);
+        _logger.LogInformation("Created room {@Room} ({roomIdStr}) for host {@Host}", room, room.IdString, context.Connection);
+        context.Sessions.AddRoom(room);
         
         await context.Connection.SendTcp(new RoomLinkPacket
         {

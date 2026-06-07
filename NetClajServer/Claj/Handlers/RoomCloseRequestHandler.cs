@@ -15,11 +15,10 @@ public class RoomCloseRequestHandler: IPacketHandler<RoomClosureRequestPacket>
 
     public async ValueTask HandleAsync(PacketContext context, RoomClosureRequestPacket packet)
     {
-        if (HandlerUtils.CheckRoomExistenceAndOwnership(context, _logger) is not { } room)
+        if (context.Sessions.CheckRoomExistenceAndOwnership(context, _logger) is not { } room)
             return;
 
         _logger.LogInformation("Closing room {roomId} because host closed it", room.Id);
-        await room.Close();
-        context.Server.Rooms.TryRemove(room.Id, out _);
+        await context.Sessions.CloseRoom(room.Id);
     }
 }

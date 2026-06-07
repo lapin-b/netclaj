@@ -19,6 +19,7 @@ public class ConnectionFactory
     public Connection Create(
         TcpClient tcpClient,
         UdpClient udpClient,
+        SessionsManager sessionsManager,
         MindustryServer server,
         Func<int, bool> connectionIdExists
     )
@@ -35,6 +36,7 @@ public class ConnectionFactory
             tcpClient,
             udpClient,
             server,
+            sessionsManager,
             _loggerFactory.CreateLogger<Connection>(),
             _metrics
         );

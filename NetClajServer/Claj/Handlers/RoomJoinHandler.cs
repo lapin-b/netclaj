@@ -35,13 +35,13 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
             return;
         }
 
-        context.Server.Rooms.TryGetValue(packet.RoomId, out var roomToJoin);
+        var roomToJoin = context.Sessions.GetRoom(packet.RoomId);
         Debug.Assert(roomToJoin != null, nameof(roomToJoin) + " != null");
 
         // A player can leave a room freely (TryLeaveRoom will return true), but
         // the host can't.
         if (
-            context.Server.FindConnectionInRooms(context.Connection) is {} alreadyJoinedRoom
+            context.Sessions.FindConnectionInRooms(context.Connection) is {} alreadyJoinedRoom
             && !await alreadyJoinedRoom.TryLeaveRoom(context.Connection, true)
         )
         {
@@ -65,19 +65,19 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
             return;
         }
         
-        _logger.LogInformation("{ConnectionId} joining room {roomId}", context.Connection.Id, roomToJoin.Id);
+        _logger.LogInformation("{@Connection} joining room {@Room}", context.Connection, roomToJoin);
         
         // TryJoinRoom will fail if the room is being dismantled or is closed
         if (!await roomToJoin.TryJoinRoom(context.Connection))
         {
-            _logger.LogWarning("{ConnectionId} tried to join a room being dismantled", context.Connection.Id);
+            _logger.LogWarning("{@Connection} tried to join a room being dismantled", context.Connection);
             context.Connection.RequestClose(ArcNetDcReason.Error);
             return;
         }
         
         while (context.Connection.RawPacketsQueue.Reader.TryRead(out var pendingPacket))
         {
-            _logger.LogDebug("Submitting packets from {ConnectionId} into the room", context.Connection.Id);
+            _logger.LogDebug("Submitting packets from {@Connection} into the room", context.Connection);
             await roomToJoin.HandlePacket(context, pendingPacket);
         }
     }
@@ -87,7 +87,7 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
 
     private RoomRejection ValidateRequest(PacketContext context, long roomId, bool reqWithPin, short? reqPin, string reqRoomType)
     {
-        if (!context.Server.Rooms.TryGetValue(roomId, out var room))
+        if (context.Sessions.GetRoom(roomId) is not {} room)
         {
             return RoomRejection.NotFound;
         }

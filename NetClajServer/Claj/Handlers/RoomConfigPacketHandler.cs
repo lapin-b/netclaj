@@ -15,7 +15,7 @@ public class RoomConfigPacketHandler: IPacketHandler<RoomConfigPacket>
 
     public ValueTask HandleAsync(PacketContext context, RoomConfigPacket packet)
     {
-        var room = HandlerUtils.CheckRoomExistenceAndOwnership(context, _logger);
+        var room = context.Sessions.CheckRoomExistenceAndOwnership(context, _logger);
         if (room == null) return ValueTask.CompletedTask;
         
         _logger.LogInformation(

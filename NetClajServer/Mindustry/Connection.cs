@@ -23,6 +23,7 @@ public partial class Connection
     public long? ParticipatesInRoomId { get; set; }
 
     private readonly MindustryServer _server;
+    private readonly SessionsManager _sessionsManager;
     private readonly ILogger<Connection> _logger;
     private readonly ServerMetrics _metrics;
 
@@ -54,6 +55,7 @@ public partial class Connection
         TcpClient tcp,
         UdpClient udp,
         MindustryServer server,
+        SessionsManager sessionsManager,
         ILogger<Connection> logger,
         ServerMetrics metrics)
     {
@@ -61,6 +63,7 @@ public partial class Connection
         _tcp = tcp;
         _udp = udp;
         _server = server;
+        _sessionsManager = sessionsManager;
         _logger = logger;
         _metrics = metrics;
     }
@@ -340,7 +343,7 @@ public partial class Connection
             try { await _receiveLoopTask; }
             catch { /* no-op */ }
 
-            await _server.NotifyConnectionClosure(this, _closureReason);
+            await _sessionsManager.CleanupConnectionState(this, _closureReason);
         }
         finally
         {

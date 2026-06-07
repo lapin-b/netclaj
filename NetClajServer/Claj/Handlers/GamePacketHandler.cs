@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
+using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
 
@@ -16,26 +17,44 @@ public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajP
 
     public ValueTask HandleAsync(PacketContext context, GamePacket packet)
     {
+        return HandleGamePacketOrClajWrapping(context, packet);
+    }
+
+    public ValueTask HandleAsync(PacketContext context, ClajPayloadWrapping packet)
+    {
+        return HandleGamePacketOrClajWrapping(context, packet);
+    }
+
+    private ValueTask HandleGamePacketOrClajWrapping(PacketContext context, MindustryPacket packet)
+    {
         if (context.Connection.ParticipatesInRoomId is not { } participatesInRoomId)
         {
-            // Ignore the packet if not participating in a room
-            _logger.LogWarning(
-                "{ConnectionId} is not yet participating in a room and raw packets are already trying to flow through handlers. Dropping",
-                context.Connection.Id
-            );
+            _logger.LogWarning("Connection {@Connection} is not in a room and is sending raw packets. Dropping", context.Connection);
             return ValueTask.CompletedTask;
         }
-
-        if (context.Server.Rooms.TryGetValue(participatesInRoomId, out var room))
+        
+        if (context.Sessions.GetRoom(participatesInRoomId) is { } room)
         {
+            if (packet is ClajPayloadWrapping && context.Connection.Id != room.HostConnectionId)
+            {
+                _logger.LogWarning(
+                    "Received a Claj wrapping packet from {@Connection}, not the room hoster {HostConnectionId}. Dropping",
+                    context.Connection,
+                    room.HostConnectionId
+                );
+
+                return ValueTask.CompletedTask;
+            }
+
             return room.HandlePacket(context, packet);
         }
-        
+
         // The room class owns ParticipatesInRoomId management.
         // This should NOT happen.
+        
         _logger.LogError(
-            "Connection {ConnectionId} says it is participating in room {roomId} but it doesn't exist",
-            context.Connection.Id,
+            "Connection {@Connection} says it's partaking in room {roomId} but it doesn't exist. This shouldn't happen", 
+            context.Connection, 
             participatesInRoomId
         );
 
@@ -44,22 +63,5 @@ public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajP
         context.Connection.ParticipatesInRoomId = null;
 
         return ValueTask.CompletedTask;
-    }
-
-    public ValueTask HandleAsync(PacketContext context, ClajPayloadWrapping packet)
-    {
-        if (context.Server.FindConnectionInRooms(context.Connection) is not { } room)
-        {
-            _logger.LogWarning("Connection is partaking in room {roomId} but it doesn't exist", context.Connection.ParticipatesInRoomId);
-            return ValueTask.CompletedTask;
-        }
-
-        if (context.Connection.Id != room.HostConnectionId)
-        {
-            _logger.LogWarning("Received a Claj wrapping packet not from room host connection. Dropping");
-            return ValueTask.CompletedTask;
-        }
-
-        return room.HandlePacket(context, packet);
     }
 }

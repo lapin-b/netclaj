@@ -11,13 +11,7 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
     IPacketHandler<DiscoverHostPacket>, 
     IPacketHandler<KeepAlivePacket>
 {
-    private readonly ILogger<FrameworkPacketsHandler> _logger;
     private static readonly byte[] HostDiscoveryReply = [0xFC, 0, 0, 0, 4];
-
-    public FrameworkPacketsHandler(ILogger<FrameworkPacketsHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public ValueTask HandleAsync(PacketContext context, PingPacket packet)
     {
@@ -41,30 +35,5 @@ public class FrameworkPacketsHandler: IPacketHandler<PingPacket>,
     public ValueTask HandleAsync(PacketContext context, KeepAlivePacket packet)
     {
         return context.Connection.Send(new KeepAlivePacket(), context.IsTcp);
-    }
-
-    public static bool TryRegisterUdpEndpoint(
-        MindustryServer server, 
-        IPEndPoint endpoint, 
-        RegisterUdpPacket packet,
-        [NotNullWhen(true)]
-        out Connection? connection
-    )
-    {
-        connection = null;
-        if (!server.Connections.TryGetValue(packet.ConnectionId, out connection))
-        {
-            // Connection ID is not existant
-            return false;
-        }
-
-        if (connection.UdpEndpoint != null)
-        {
-            // UDP endpoint is already tied with another endpoint
-            return false;
-        }
-
-        connection.UdpEndpoint = endpoint;
-        return true;
     }
 }

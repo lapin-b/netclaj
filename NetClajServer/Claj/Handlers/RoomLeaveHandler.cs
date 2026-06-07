@@ -15,7 +15,7 @@ public class RoomLeaveHandler: IPacketHandler<ConnectionClosedPacket>
 
     public async ValueTask HandleAsync(PacketContext context, ConnectionClosedPacket packet)
     {
-        if (context.Server.FindConnectionInRooms(context.Connection) is not {} room)
+        if (context.Sessions.FindConnectionInRooms(context.Connection) is not {} room)
         {
             _logger.LogWarning("Tried to disconnect from a non-existing room");
             return;
@@ -27,9 +27,9 @@ public class RoomLeaveHandler: IPacketHandler<ConnectionClosedPacket>
             return;
         }
 
-        if (context.Server.Connections.TryGetValue(packet.ConnectionId, out var targetConnection))
+        if (context.Sessions.GetConnectionById(packet.ConnectionId) is {} targetConnection)
         {
-            _logger.LogInformation("Host made {ConnectionID} leave the room {RoomId}", targetConnection.Id, room.Id);
+            _logger.LogInformation("Host made {@Connection} leave the room {@Room}", targetConnection, room);
             await room.TryLeaveRoom(targetConnection);
         }
         else

@@ -16,6 +16,7 @@ namespace NetClajServer.Mindustry;
 public class MindustryServer
 {
     private readonly ILogger<MindustryServer> _logger;
+    private readonly SessionsManager _sessionsManager;
     private readonly ConnectionFactory _connectionFactory;
 
     // Packet routing
@@ -32,18 +33,16 @@ public class MindustryServer
     // a null value.
     private CancellationTokenSource? _cts;
 
-    // Active connections and rooms management
-    public ConcurrentDictionary<int, Connection> Connections { get; } = new();
-    public ConcurrentDictionary<long, Room> Rooms { get; } = new();
-    private readonly ConcurrentDictionary<IPEndPoint, int> _udpEndPointsToConnection = new();
     public MindustryServer(
         ClajServerConfiguration config, 
-        ILogger<MindustryServer> logger, 
+        ILogger<MindustryServer> logger,
+        SessionsManager sessionsManager,
         IServiceProvider provider,
         ConnectionFactory connectionFactory
     )
     {
         _logger = logger;
+        _sessionsManager = sessionsManager;
         _connectionFactory = connectionFactory;
 
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
@@ -94,23 +93,19 @@ public class MindustryServer
         _cts = null;
         
         _logger.LogInformation("Stopping server");
-        await cts.CancelAsync();
+        cts.Cancel();
         _tcpListener.Stop();
         _udpListener.Close();
-
+        
+        await _sessionsManager.CloseAllConnections();
         await Task.WhenAll(
             _tcpServerTask ?? Task.CompletedTask,
             _udpServerTask ?? Task.CompletedTask
         );
-
-        foreach (var connection in Connections.Values)
-        {
-            connection.RequestClose(ArcNetDcReason.Closed);
-            await connection.Closed;
-        }
         
-        Connections.Clear();
         cts.Dispose();
+        _tcpListener.Dispose();
+        _udpListener.Dispose();
     }
 
     public ValueTask HandleMindustryPacket(Connection connection, MindustryPacket packet)
@@ -120,6 +115,7 @@ public class MindustryServer
         var context = new PacketContext
         {
             Server = this,
+            Sessions = _sessionsManager,
             Connection = connection,
             CancellationToken = _cts.Token,
             IsTcp = packet.IsTcp
@@ -133,45 +129,6 @@ public class MindustryServer
         _logger.LogDebug("No handler for {packetType}", packet.GetType().Name);
         return ValueTask.CompletedTask;
     }
-
-    public Room? FindConnectionInRooms(Connection connection)
-    {
-        return connection.ParticipatesInRoomId is { } participatesInRoomId 
-               && Rooms.TryGetValue(participatesInRoomId, out var room) 
-            ? room
-            : null;
-    }
-
-    public async Task NotifyConnectionClosure(Connection connection, ArcNetDcReason? reason)
-    {
-        // Remove the connection from the registry
-        _logger.LogInformation("Connection {ConnectionId} closed. Reason={Reason}", connection.Id, reason);
-        Connections.TryRemove(connection.Id, out _);
-        
-        if (connection.UdpEndpoint is { } endpoint)
-        {
-            _udpEndPointsToConnection.TryRemove(endpoint, out _);
-        }
-        
-        // Remove this client from the room or close it, depending on who it is
-        if (connection.ParticipatesInRoomId is { } participatesInRoomId
-            && Rooms.TryGetValue(participatesInRoomId, out var room)
-           )
-        {
-            if (room.HostConnectionId == connection.Id)
-            {
-                _logger.LogInformation("Closing room");
-                await room.Close();
-                Rooms.TryRemove(room.Id, out _);
-            }
-            else
-            {
-                _logger.LogInformation("Leaving room");
-                await room.TryLeaveRoom(connection, false, true);
-            }
-        }
-    }
-
     private async Task TcpAcceptLoop(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
@@ -197,14 +154,13 @@ public class MindustryServer
             var connection = _connectionFactory.Create(
                 client,
                 _udpListener,
+                _sessionsManager,
                 this,
-                id => Connections.ContainsKey(id)
+                _sessionsManager.ConnectionIdExists
             );
-
-            Connections.TryAdd(connection.Id, connection);
-            connection.Start(ct);
-
-            _logger.LogInformation("Client ID {ConnectionID} connected", connection.Id);
+            
+            _logger.LogInformation("Client {@Connection} connected", connection);
+            _sessionsManager.AddAndStartConnection(connection, ct);
             await connection.SendTcp(new RegisterTcpPacket { ConnectionId = connection.Id });
         }
     }
@@ -251,9 +207,8 @@ public class MindustryServer
             {
                 // Binding an UDP endpoint to a TCP connection many times is unsupported by design. The original
                 // network engine (`arc.net` in Mindustry) doesn't seem to support this case.
-                if (FrameworkPacketsHandler.TryRegisterUdpEndpoint(this, message.RemoteEndPoint, registerUdpPacket, out var connection))
+                if (_sessionsManager.TryRegisterUdpEndpointToConnection(message.RemoteEndPoint, registerUdpPacket.ConnectionId, out var connection))
                 {
-                    _udpEndPointsToConnection.TryAdd(message.RemoteEndPoint, connection.Id);
                     var sendRegisterUdpTask = connection.SendTcp(new RegisterUdpPacket { ConnectionId = 0 });
                     if (sendRegisterUdpTask.IsCompletedSuccessfully) continue;
                     await sendRegisterUdpTask;
@@ -262,12 +217,9 @@ public class MindustryServer
                 continue;
             }
 
-            if (
-                !_udpEndPointsToConnection.TryGetValue(message.RemoteEndPoint, out var connectionId)
-                || !Connections.TryGetValue(connectionId, out var fromConnection)
-            )
+            if (_sessionsManager.GetConnectionByUdpEndpoint(message.RemoteEndPoint) is not { } fromConnection)
             {
-                _logger.LogWarning("Endpoint {endpoint} has no corresponding connection", message.RemoteEndPoint);
+                _logger.LogWarning("UDP Endpoint {Endpoint} has no corresponding connection", message.RemoteEndPoint);
                 continue;
             }
 

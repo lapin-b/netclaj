@@ -15,7 +15,8 @@ public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
 
     public async ValueTask HandleAsync(PacketContext context, RoomListRequestPacket packet)
     {
-        var roomList = context.Server.Rooms
+        var roomList = context.Sessions
+            .Rooms
             .Values
             .Where(r => r.Configuration is { IsPublic: true, CanRequestHostState: true })
             .ToList();
