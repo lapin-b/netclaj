@@ -19,7 +19,7 @@ public class SessionsManager
     private readonly ConcurrentDictionary<IPEndPoint, int> _udpEndpointToConnectionId = new();
     private readonly ConcurrentDictionary<long, Room> _rooms = new();
 
-    public ReadOnlyDictionary<long, Room> Rooms => _rooms.AsReadOnly();
+    public ConcurrentDictionary<long, Room> Rooms => _rooms;
     
     public SessionsManager(
         ILogger<SessionsManager> logger, 
@@ -111,8 +111,8 @@ public class SessionsManager
             if (room.HostConnectionId == connection.Id)
             {
                 _logger.LogInformation("Closing room {@Room} because the host closed the connection", room);
-                await room.Close();
                 _rooms.TryRemove(room.Id, out _);
+                await room.Close();
             }
             else
             {
@@ -149,7 +149,7 @@ public class SessionsManager
     
     public async Task CloseRoom(long roomId)
     {
-        _rooms.TryGetValue(roomId, out var room);
+        _rooms.TryRemove(roomId, out var room);
         if (room == null) return;
         await room.Close();
     }
