@@ -115,7 +115,6 @@ public class MindustryServer
         var context = new PacketContext
         {
             Server = this,
-            Sessions = _sessionsManager,
             Connection = connection,
             CancellationToken = _cts.Token,
             IsTcp = packet.IsTcp

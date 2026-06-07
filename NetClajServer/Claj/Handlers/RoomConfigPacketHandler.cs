@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
+using NetClajServer.Mindustry;
 using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
@@ -7,20 +8,22 @@ namespace NetClajServer.Claj.Handlers;
 public class RoomConfigPacketHandler: IPacketHandler<RoomConfigPacket>
 {
     private readonly ILogger<RoomConfigPacketHandler> _logger;
+    private readonly SessionsManager _sessionsManager;
 
-    public RoomConfigPacketHandler(ILogger<RoomConfigPacketHandler> logger)
+    public RoomConfigPacketHandler(ILogger<RoomConfigPacketHandler> logger, SessionsManager sessionsManager)
     {
         _logger = logger;
+        _sessionsManager = sessionsManager;
     }
 
     public ValueTask HandleAsync(PacketContext context, RoomConfigPacket packet)
     {
-        var room = context.Sessions.CheckRoomExistenceAndOwnership(context.Connection);
+        var room = _sessionsManager.CheckRoomExistenceAndOwnership(context.Connection);
         if (room == null) return ValueTask.CompletedTask;
         
         _logger.LogInformation(
-            "Set config for {RoomId}. isPublic={isPublic}; isProtected={isProtected} ({Pin}), canQueryHost={canQueryHost}, maxClients={maxClients}",
-            context.Connection.ParticipatesInRoomId,
+            "Set config for {@Room}. isPublic={isPublic}; isProtected={isProtected} ({Pin}), canQueryHost={canQueryHost}, maxClients={maxClients}",
+            room,
             packet.IsPublic,
             packet.IsProtectedByPin,
             packet.Pin,

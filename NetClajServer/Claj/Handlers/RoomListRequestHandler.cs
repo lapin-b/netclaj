@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
+using NetClajServer.Mindustry;
 using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
@@ -7,15 +8,17 @@ namespace NetClajServer.Claj.Handlers;
 public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
 {
     private readonly ILogger<RoomListRequestHandler> _logger;
+    private readonly SessionsManager _sessionsManager;
 
-    public RoomListRequestHandler(ILogger<RoomListRequestHandler> logger)
+    public RoomListRequestHandler(ILogger<RoomListRequestHandler> logger, SessionsManager sessionsManager)
     {
         _logger = logger;
+        _sessionsManager = sessionsManager;
     }
 
     public async ValueTask HandleAsync(PacketContext context, RoomListRequestPacket packet)
     {
-        var roomList = context.Sessions
+        var roomList = _sessionsManager
             .Rooms
             .Values
             .Where(r => r.Configuration is { IsPublic: true, CanRequestHostState: true })

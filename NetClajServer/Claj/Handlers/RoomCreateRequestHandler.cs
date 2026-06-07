@@ -1,6 +1,7 @@
 ﻿using System.Net.Mime;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
+using NetClajServer.Mindustry;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
 
@@ -9,13 +10,13 @@ namespace NetClajServer.Claj.Handlers;
 public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket>
 {
     private readonly ILogger<RoomCreateRequestHandler> _logger;
-    private readonly RoomFactory _roomFactory;
+    private readonly SessionsManager _sessionsManager;
     private const int ServerVersion = 4;
 
-    public RoomCreateRequestHandler(ILogger<RoomCreateRequestHandler> logger, RoomFactory roomFactory)
+    public RoomCreateRequestHandler(ILogger<RoomCreateRequestHandler> logger, SessionsManager sessionsManager)
     {
         _logger = logger;
-        _roomFactory = roomFactory;
+        _sessionsManager = sessionsManager;
     }
 
     public async ValueTask HandleAsync(PacketContext context, RoomCreationRequestPacket packet)
@@ -37,7 +38,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
 
         if (
             context.Connection.ParticipatesInRoomId is { } roomId
-            && context.Sessions.GetRoom(roomId) is { } existingRoom
+            && _sessionsManager.GetRoom(roomId) is { } existingRoom
             && existingRoom.HostConnectionId == context.Connection.Id
         )
         {
@@ -56,7 +57,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
             return;
         }
 
-        var room = context.Sessions.CreateRoom(context.Connection, packet.RoomType);
+        var room = _sessionsManager.CreateRoom(context.Connection, packet.RoomType);
         _logger.LogInformation("Created room {@Room} ({roomIdStr}) for host {@Host}", room, room.IdString, context.Connection);
         
         await context.Connection.SendTcp(new RoomLinkPacket

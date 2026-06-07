@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
+using NetClajServer.Mindustry;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
 
@@ -9,10 +10,12 @@ namespace NetClajServer.Claj.Handlers;
 public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<RoomJoinRequestPacket>
 {
     private readonly ILogger<RoomJoinHandler> _logger;
+    private readonly SessionsManager _sessionsManager;
 
-    public RoomJoinHandler(ILogger<RoomJoinHandler> logger)
+    public RoomJoinHandler(ILogger<RoomJoinHandler> logger, SessionsManager sessionsManager)
     {
         _logger = logger;
+        _sessionsManager = sessionsManager;
     }
 
     public async ValueTask HandleAsync(PacketContext context, RoomJoinPacket packet)
@@ -35,13 +38,13 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
             return;
         }
 
-        var roomToJoin = context.Sessions.GetRoom(packet.RoomId);
+        var roomToJoin = _sessionsManager.GetRoom(packet.RoomId);
         Debug.Assert(roomToJoin != null, nameof(roomToJoin) + " != null");
 
         // A player can leave a room freely (TryLeaveRoom will return true), but
         // the host can't.
         if (
-            context.Sessions.FindConnectionInRooms(context.Connection) is {} alreadyJoinedRoom
+            _sessionsManager.FindConnectionInRooms(context.Connection) is {} alreadyJoinedRoom
             && !await alreadyJoinedRoom.TryLeaveRoom(context.Connection, true)
         )
         {
@@ -87,7 +90,7 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
 
     private RoomRejection ValidateRequest(PacketContext context, long roomId, bool reqWithPin, short? reqPin, string reqRoomType)
     {
-        if (context.Sessions.GetRoom(roomId) is not {} room)
+        if (_sessionsManager.GetRoom(roomId) is not {} room)
         {
             return RoomRejection.NotFound;
         }

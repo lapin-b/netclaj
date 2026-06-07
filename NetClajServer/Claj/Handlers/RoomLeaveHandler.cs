@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
+using NetClajServer.Mindustry;
 using NetClajServer.Packets.Claj;
 
 namespace NetClajServer.Claj.Handlers;
@@ -7,15 +8,17 @@ namespace NetClajServer.Claj.Handlers;
 public class RoomLeaveHandler: IPacketHandler<ConnectionClosedPacket>
 {
     private readonly ILogger<RoomLeaveHandler> _logger;
+    private readonly SessionsManager _sessionsManager;
 
-    public RoomLeaveHandler(ILogger<RoomLeaveHandler> logger)
+    public RoomLeaveHandler(ILogger<RoomLeaveHandler> logger, SessionsManager sessionsManager)
     {
         _logger = logger;
+        _sessionsManager = sessionsManager;
     }
 
     public async ValueTask HandleAsync(PacketContext context, ConnectionClosedPacket packet)
     {
-        if (context.Sessions.FindConnectionInRooms(context.Connection) is not {} room)
+        if (_sessionsManager.FindConnectionInRooms(context.Connection) is not {} room)
         {
             _logger.LogWarning("Tried to disconnect from a non-existing room");
             return;
@@ -27,7 +30,7 @@ public class RoomLeaveHandler: IPacketHandler<ConnectionClosedPacket>
             return;
         }
 
-        if (context.Sessions.GetConnectionById(packet.ConnectionId) is {} targetConnection)
+        if (_sessionsManager.GetConnectionById(packet.ConnectionId) is {} targetConnection)
         {
             _logger.LogInformation("Host made {@Connection} leave the room {@Room}", targetConnection, room);
             await room.TryLeaveRoom(targetConnection);

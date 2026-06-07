@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
+using NetClajServer.Mindustry;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
@@ -9,10 +10,12 @@ namespace NetClajServer.Claj.Handlers;
 public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajPayloadWrapping>
 {
     private readonly ILogger<GamePacketHandler> _logger;
+    private readonly SessionsManager _sessionsManager;
 
-    public GamePacketHandler(ILogger<GamePacketHandler> logger)
+    public GamePacketHandler(ILogger<GamePacketHandler> logger, SessionsManager sessionsManager)
     {
         _logger = logger;
+        _sessionsManager = sessionsManager;
     }
 
     public ValueTask HandleAsync(PacketContext context, GamePacket packet)
@@ -33,7 +36,7 @@ public class GamePacketHandler: IPacketHandler<GamePacket>, IPacketHandler<ClajP
             return ValueTask.CompletedTask;
         }
         
-        if (context.Sessions.GetRoom(participatesInRoomId) is { } room)
+        if (_sessionsManager.GetRoom(participatesInRoomId) is { } room)
         {
             if (packet is ClajPayloadWrapping && context.Connection.Id != room.HostConnectionId)
             {
