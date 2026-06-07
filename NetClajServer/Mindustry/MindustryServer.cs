@@ -17,7 +17,6 @@ public class MindustryServer
 {
     private readonly ILogger<MindustryServer> _logger;
     private readonly SessionsManager _sessionsManager;
-    private readonly ConnectionFactory _connectionFactory;
 
     // Packet routing
     private readonly Dictionary<Type, Func<PacketContext, MindustryPacket, ValueTask>> _router = new();
@@ -37,13 +36,11 @@ public class MindustryServer
         ClajServerConfiguration config, 
         ILogger<MindustryServer> logger,
         SessionsManager sessionsManager,
-        IServiceProvider provider,
-        ConnectionFactory connectionFactory
+        IServiceProvider provider
     )
     {
         _logger = logger;
         _sessionsManager = sessionsManager;
-        _connectionFactory = connectionFactory;
 
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
@@ -114,7 +111,6 @@ public class MindustryServer
 
         var context = new PacketContext
         {
-            Server = this,
             Connection = connection,
             CancellationToken = _cts.Token,
             IsTcp = packet.IsTcp

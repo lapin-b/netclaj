@@ -5,7 +5,6 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Claj;
-using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Packets;
 
 namespace NetClajServer.Mindustry;
