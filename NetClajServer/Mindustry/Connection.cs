@@ -96,7 +96,7 @@ public partial class Connection
 
     public ValueTask SendTcp(List<MindustryPacket> packets)
     {
-        if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
+        if (Volatile.Read(ref _closeHasStarted) == 1 || packets.Count == 0) return ValueTask.CompletedTask;
 
         using var memoryStream = MemoryStreamManager.GetStream();
         using var binaryWriter = new BinaryWriter(memoryStream);

@@ -47,8 +47,6 @@ public partial class Room
     private readonly TaskCompletionSource _roomClosedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
     // Sending idle connection notifications continuously
-    private Task? _idleConnectionSendTask;
-    private CancellationTokenSource? _idleConnectionSendCts;
     private readonly List<MindustryPacket> _preparedIdlingPackets = [];
     
     private TaskCompletionSource? _stateResponseReceived;
@@ -83,12 +81,6 @@ public partial class Room
             RoomId = Id
         });
 
-        if (!_players.IsEmpty && _idleConnectionSendTask == null)
-        {
-            _idleConnectionSendCts = new CancellationTokenSource();
-            _idleConnectionSendTask = Task.Run(SendIdleConnectionNotifications);
-        }
-
         return true;
     }
 
@@ -118,12 +110,6 @@ public partial class Room
             });
         }
         
-        if(_players.IsEmpty && _idleConnectionSendTask != null)
-        {
-            _idleConnectionSendCts!.Cancel();
-            await _idleConnectionSendTask;
-        }
-
         return true;
     }
 
@@ -233,14 +219,9 @@ public partial class Room
         return ValueTask.CompletedTask;
     }
 
-    private async Task SendIdleConnectionNotifications()
+    public ValueTask SendIdleConnectionsNotification()
     {
-        ArgumentNullException.ThrowIfNull(_idleConnectionSendCts);
-        while (!_idleConnectionSendCts.IsCancellationRequested)
-        {
-            await _host.SendTcp(_preparedIdlingPackets);
-            await Task.Delay(250);
-        }
+        return _host.SendTcp(_preparedIdlingPackets);
     }
 
     private async Task ExecuteRoomTeardown()
@@ -260,9 +241,6 @@ public partial class Room
                     player.ParticipatesInRoomId = null;
                     player.RequestClose(ArcNetDcReason.Closed);
                 }
-
-                _idleConnectionSendCts?.Cancel();
-                if (_idleConnectionSendTask != null) await _idleConnectionSendTask;
             }
             finally
             {

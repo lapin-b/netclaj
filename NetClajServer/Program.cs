@@ -92,5 +92,6 @@ class Program
 
         collection.AddHostedService<ClajServerService>();
         collection.AddHostedService<ProcessedPacketsRateUpdater>();
+        collection.AddHostedService<IdleConnectionNotificationTask>();
     }
 }
