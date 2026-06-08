@@ -47,9 +47,6 @@ public partial class Room
     private int _closingStarted = 0;
     private readonly TaskCompletionSource _roomClosedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
-    // Sending idle connection notifications continuously
-    private readonly List<MindustryPacket> _preparedIdlingPackets = [];
-    
     // Relay querying state from the room host
     private TaskCompletionSource? _stateResponseReceived;
     private DateTime? _stateLastReceivedAt;
@@ -76,7 +73,6 @@ public partial class Room
         
         _players.TryAdd(player.Id, player);
         player.ParticipatesInRoomId = Id;
-        _preparedIdlingPackets.Add(new ConnectionIdlingPacket { ConnectionId = player.Id });
 
         await _host.SendTcp(new ConnectionJoinPacket
         {
@@ -97,7 +93,6 @@ public partial class Room
         
         _players.TryRemove(player.Id, out _);
         player.ParticipatesInRoomId = null;
-        _preparedIdlingPackets.RemoveAll(c => ((ConnectionIdlingPacket)c).ConnectionId == player.Id);
         
         if (!keepOpen)
         {
@@ -227,11 +222,6 @@ public partial class Room
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask SendIdleConnectionsNotification()
-    {
-        return _host.SendTcp(_preparedIdlingPackets);
-    }
-
     private async Task ExecuteRoomTeardown()
     {
         if (Interlocked.Exchange(ref _closingStarted, 1) == 0)
@@ -254,7 +244,6 @@ public partial class Room
             {
                 _host.ParticipatesInRoomId = null;
                 _players.Clear();
-                _preparedIdlingPackets.Clear();
                 _roomClosedTcs.TrySetResult();
             }
         }

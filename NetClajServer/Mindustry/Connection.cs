@@ -94,23 +94,6 @@ public partial class Connection
             : new ValueTask(task.AsTask());
     }
 
-    public ValueTask SendTcp(List<MindustryPacket> packets)
-    {
-        if (Volatile.Read(ref _closeHasStarted) == 1 || packets.Count == 0) return ValueTask.CompletedTask;
-
-        using var memoryStream = MemoryStreamManager.GetStream();
-        using var binaryWriter = new BinaryWriter(memoryStream);
-        
-        var sendBytes = Serializer.Serialize(packets, memoryStream, binaryWriter);
-        LogSentBytes("TCP bulk", Id, sendBytes);
-        
-        var task = _tcp.Client.SendAsync(sendBytes, _cts.Token);
-        
-        return task.IsCompletedSuccessfully 
-            ? ValueTask.CompletedTask 
-            : new ValueTask(task.AsTask());
-    }
-
     public Task SendTcp(GamePacket packet)
     {
         if(Volatile.Read(ref _closeHasStarted) == 1) return Task.CompletedTask;
