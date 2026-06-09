@@ -32,6 +32,9 @@ public partial class Connection
     private readonly UdpClient _udp;
     public IPEndPoint? UdpEndpoint { get; set; }
     public bool IsConnected => _tcp.Connected && UdpEndpoint != null;
+    private PipeReader _networkReader;
+    private PipeWriter _networkWriter;
+    private readonly SemaphoreSlim _networkWriterLock = new(1, 1);
 
     // Connection state management and shutdown tasks
     private readonly CancellationTokenSource _cts = new();
@@ -66,6 +69,10 @@ public partial class Connection
         _sessionsManager = sessionsManager;
         _logger = logger;
         _metrics = metrics;
+        
+        var networkStream = _tcp.GetStream();
+        _networkReader = PipeReader.Create(networkStream);
+        _networkWriter = PipeWriter.Create(networkStream);
     }
 
     public void Start(CancellationToken serverToken)
@@ -251,13 +258,11 @@ public partial class Connection
     
     private async Task ReceiveLoop(CancellationToken token)
     {
-        var reader = PipeReader.Create(_tcp.GetStream());
-
         while (!token.IsCancellationRequested)
         {
             try
             {
-                var pipeRead = await reader.ReadAsync(token);
+                var pipeRead = await _networkReader.ReadAsync(token);
                 var buffer = pipeRead.Buffer;
 
                 while (TryReadFrame(ref buffer, out var payload))
@@ -272,7 +277,7 @@ public partial class Connection
                     await task;
                 }
 
-                reader.AdvanceTo(buffer.Start, buffer.End);
+                _networkReader.AdvanceTo(buffer.Start, buffer.End);
 
                 if (pipeRead.IsCompleted)
                 {
