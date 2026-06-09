@@ -6,6 +6,8 @@ public class RoomListRequestPacket: MindustryPacket
 {
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 18;
+
+    public ClajRoomType RequestedRoomType { get; set; } = ClajRoomType.Empty;
     
     public override sbyte GetPacketFamily() => Type;
 
@@ -18,6 +20,7 @@ public class RoomListRequestPacket: MindustryPacket
 
     public override PacketResult TryDeserialize(ref PacketReader reader)
     {
+        RequestedRoomType = ClajRoomType.FromPacketReader(ref reader);
         return reader.Result;
     }
 }

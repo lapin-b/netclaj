@@ -144,8 +144,8 @@ public class PacketReader
     )
     where TNumber : IBinaryInteger<TNumber>
     {
-        var typeSize = Marshal.SizeOf<TNumber>();
         if (ProcessingFailed) return new PacketIntermediateProcessing<TNumber>(default!, _packetName, field, this);
+        var typeSize = Marshal.SizeOf<TNumber>();
         if(Remaining < typeSize) return FailEof<TNumber>(_packetName, field);
         
         var valueSequence = _sequence.Slice(Consumed, typeSize);

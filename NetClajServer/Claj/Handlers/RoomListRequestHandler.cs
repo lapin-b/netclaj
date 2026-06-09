@@ -21,7 +21,7 @@ public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
         var roomList = _sessionsManager
             .Rooms
             .Values
-            .Where(r => r.Configuration is { IsPublic: true, CanRequestHostState: true })
+            .Where(r => r.RoomType == packet.RequestedRoomType && r.Configuration is { IsPublic: true, CanRequestHostState: true })
             .ToList();
 
         using var globalTimeoutToken = new CancellationTokenSource(Constants.RoomStateQueryGlobalTimeout);
@@ -39,7 +39,7 @@ public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
             {
                 _logger.LogError(e, "Couldn't query room state for {@room}", r);
             }
-        }).ToArray();
+        });
 
         try
         {
