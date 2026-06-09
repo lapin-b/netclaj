@@ -27,7 +27,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
                 ? ClajConnectionCloseReason.ObsoleteClient
                 : ClajConnectionCloseReason.OutdatedServer;
             
-            await context.Connection.SendTcp(new RoomClosedPacket()
+            await context.Connection.SendTcp(new RoomClosedPacket
             {
                 Reason = reason
             });

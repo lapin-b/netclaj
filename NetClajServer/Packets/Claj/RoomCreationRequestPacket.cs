@@ -7,7 +7,7 @@ namespace NetClajServer.Packets.Claj;
 public class RoomCreationRequestPacket: MindustryPacket
 {
     public int? Version { get; set; }
-    public string RoomType { get; set; } = string.Empty;
+    public ClajRoomType RoomType { get; set; } = ClajRoomType.Empty;
     
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 4;
@@ -25,14 +25,7 @@ public class RoomCreationRequestPacket: MindustryPacket
             .Ensure(l => l == 0, PacketErrorCode.InvalidValue, "UTF length is not zero");
         
         Version = reader.ReadIntBigEndian(nameof(Version));
-        
-        var strLen = reader
-            .ReadByte(nameof(RoomType))
-            .Ensure(l => l is > 0 and <= 16, PacketErrorCode.InvalidValue, "String length is zero length or more than 16");
-
-        RoomType = reader
-            .ReadExactBytes(nameof(RoomType), strLen)
-            .Map(roomTypeBytes => Encoding.ASCII.GetString(roomTypeBytes));
+        RoomType = ClajRoomType.FromPacketReader(ref reader);
 
         return reader.Result;
     }
@@ -44,10 +37,8 @@ public class RoomCreationRequestPacket: MindustryPacket
             throw new ArgumentNullException(nameof(Version));
         }
 
-        ArgumentNullException.ThrowIfNull(RoomType);
-        
         writer.Write((short)0);
         writer.WriteInt32BigEndian((int)Version);
-        writer.Write(RoomType);
+        RoomType.Serialize(writer);
     }
 }

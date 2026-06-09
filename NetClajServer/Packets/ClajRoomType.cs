@@ -1,0 +1,35 @@
+﻿using System.Text;
+using NetClajServer.Datastructures;
+using NetClajServer.Packets.IO;
+
+namespace NetClajServer.Packets;
+
+public struct ClajRoomType
+{
+    public static readonly ClajRoomType Empty = new();
+    
+    public string Type { get; set; } = string.Empty;
+
+    public ClajRoomType()
+    {
+    }
+
+    public static ClajRoomType FromPacketReader(ref PacketReader reader)
+    {
+        ushort roomTypeLength = reader.ReadByte("Room type length")
+            .Ensure(l => l <= 16, PacketErrorCode.LimitExceeded, "Room type length is too long");
+        
+        string roomType = reader.ReadExactBytes("Room type", roomTypeLength)
+            .Map(seq => Encoding.ASCII.GetString(seq));
+        
+        return new ClajRoomType { Type = roomType };
+    }
+    
+    public static implicit operator string (ClajRoomType roomType) => roomType.Type;
+
+    public void Serialize(BinaryWriter writer)
+    {
+        writer.Write((byte)Type.Length);
+        writer.Write(Type.AsSpan());
+    }
+}
