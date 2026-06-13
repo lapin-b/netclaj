@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Buffers.Binary;
+using System.Globalization;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
@@ -84,21 +85,23 @@ public partial class Connection
     
     public ValueTask Send(MindustryPacket packet, bool isTcp) => isTcp ? SendTcp(packet) : SendUdp(packet);
 
-    public ValueTask SendTcp(MindustryPacket packet)
+    public async ValueTask SendTcp(MindustryPacket packet)
     {
-        if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
+        if (Volatile.Read(ref _closeHasStarted) == 1) return;
 
-        using var memoryStream = MemoryStreamManager.GetStream();
-        using var binaryWriter = new BinaryWriter(memoryStream);
-        
-        var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter);
-        LogSentBytes("TCP", Id, sendBytes);
-        
-        var task = _tcp.Client.SendAsync(sendBytes, _cts.Token);
-        
-        return task.IsCompletedSuccessfully 
-            ? ValueTask.CompletedTask 
-            : new ValueTask(task.AsTask());
+        try
+        {
+            await _networkWriterLock.WaitAsync(_cts.Token);
+            var lengthSpan = _networkWriter.GetSpan(2);
+            _networkWriter.Advance(2);
+            var length = Serializer.Serialize(packet, _networkWriter);
+            BinaryPrimitives.WriteInt16BigEndian(lengthSpan, (short)length);
+            await _networkWriter.FlushAsync(_cts.Token);
+        }
+        finally
+        {
+            _networkWriterLock.Release();
+        }
     }
 
     public Task SendTcp(GamePacket packet)
@@ -194,12 +197,10 @@ public partial class Connection
         if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
         
         using var memoryStream = MemoryStreamManager.GetStream();
-        using var binaryWriter = new BinaryWriter(memoryStream);
         
-        var sendBytes = Serializer.Serialize(packet, memoryStream, binaryWriter, false);
-        LogSentBytes("UDP", Id, sendBytes);
-
-        var task = _udp.SendAsync(sendBytes, UdpEndpoint, _cts.Token);
+        Serializer.Serialize(packet, memoryStream, false);
+        var writtenBytes = memoryStream.GetBuffer().AsMemory(0, (int)memoryStream.Length);
+        var task = _udp.SendAsync(writtenBytes, UdpEndpoint, _cts.Token);
 
         return task.IsCompletedSuccessfully 
             ? ValueTask.CompletedTask 
