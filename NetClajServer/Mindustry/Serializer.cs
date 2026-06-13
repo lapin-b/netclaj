@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.IO.Pipelines;
 using NetClajServer.Datastructures;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
@@ -10,32 +11,19 @@ namespace NetClajServer.Mindustry;
 
 public static class Serializer
 {
-    public static ReadOnlyMemory<byte> Serialize(MindustryPacket packet, MemoryStream memoryStream, BinaryWriter binaryWriter, bool isTcp = true)
+    public static int Serialize(MindustryPacket packet, IBufferWriter<byte> buffer, bool isTcp = true)
     {
-        // If the packet is sent over TCP, we should skip two bytes that will later receive
-        // the payload length of this packet. UDP doesn't care about that.
-        if (isTcp)
-        {
-            binaryWriter.Seek(2, SeekOrigin.Begin);
-        }
+        // The caller back-patches the packet size into the prelude. We only need to keep track of what's written as part of this packet.
+        var countingBuffer = new CountingBufferWritter(buffer);
         
         if (packet is not GamePacket)
         {
-            binaryWriter.Write(packet.GetPacketFamily());
-            binaryWriter.Write(packet.GetPacketIdentifier());
+            countingBuffer.WriteIntegerBe(packet.GetPacketFamily());
+            countingBuffer.WriteIntegerBe(packet.GetPacketIdentifier());
         }
 
-        packet.Serialize(binaryWriter);
-
-        if (isTcp)
-        {
-            // The cursor is at the end. The payload length of the packet is position - 2
-            var packetLength = memoryStream.Position - 2;
-            binaryWriter.Seek(0, SeekOrigin.Begin);
-            binaryWriter.WriteInt16BigEndian((short)packetLength);   
-        }
-
-        return memoryStream.GetBuffer().AsMemory(0, (int)memoryStream.Length);
+        packet.Serialize(countingBuffer);
+        return countingBuffer.BytesWritten;
     }
 
     public static ReadOnlyMemory<byte> Serialize(List<MindustryPacket> packets, MemoryStream memoryStream, BinaryWriter binaryWriter, bool isTcp = true)
@@ -51,7 +39,7 @@ public static class Serializer
                 binaryWriter.Write(packet.GetPacketIdentifier());
             }
             
-            packet.Serialize(binaryWriter);
+            //packet.Serialize(binaryWriter);
 
             if (isTcp)
             {
