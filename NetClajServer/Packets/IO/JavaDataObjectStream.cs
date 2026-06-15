@@ -68,7 +68,8 @@ public class JavaDataObjectStream
         // The number of chars produced may be less than utflen
         return new string(chararr, 0, chararrCount);
     }
-
+    
+    // TODO: implement a way to be zero allocations by taking a Span<byte> and writing into it directly 
     public static byte[] EncodeUtf(string s)
     {
         var strlen = s.Length;
