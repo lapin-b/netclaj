@@ -180,7 +180,7 @@ public partial class Room
                 };
 
                 return clajWrapper.WrappedPacketIsTcp 
-                    ? new ValueTask(targetConnection.SendTcp(bufferToSend)) 
+                    ? targetConnection.SendTcp(bufferToSend) 
                     : targetConnection.SendUdp(bufferToSend);
             }
 
@@ -216,7 +216,7 @@ public partial class Room
             
             LogClientToHostPayloadRelay(Id, context.Connection.Id, HostConnectionId);
 
-            return new ValueTask(_host.SendTcp(clajWrappedGamePacket));
+            return _host.SendTcp(clajWrappedGamePacket);
         }
 
         return ValueTask.CompletedTask;
