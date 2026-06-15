@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Numerics;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets;
 
@@ -9,9 +10,17 @@ public static class BufferWriterExtensions
     {
         public void WriteIntegerBe<T>(T value) where T : IBinaryInteger<T>
         {
-            var span = buffer.GetSpan(value.GetByteCount());
-            value.WriteBigEndian(span);
-            buffer.Advance(span.Length);
+            var bytesCount = value.GetByteCount();
+
+            var span = buffer.GetSpan(bytesCount);
+            value.WriteBigEndian(span[..bytesCount]);
+            buffer.Advance(bytesCount);
         }
+
+        public void WriteInt32BigEndian(int n) => buffer.WriteIntegerBe(n);
+        
+        public void WriteBool(bool b) => buffer.WriteIntegerBe((byte)(b ? 1 : 0));
+
+        public void WriteJavaUtf(string str) => buffer.Write(JavaDataObjectStream.EncodeUtf(str));
     }
 }
