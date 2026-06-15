@@ -1,6 +1,5 @@
 ﻿using System.Buffers;
 using System.Text;
-using NetClajServer.Datastructures;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
@@ -18,9 +17,9 @@ public class RoomJoinPacket: MindustryPacket
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
-        writer.WriteInt64BigEndian(RoomId);
+        writer.WriteIntegerBe(RoomId);
     }
 
     public override PacketResult TryDeserialize(ref PacketReader reader)

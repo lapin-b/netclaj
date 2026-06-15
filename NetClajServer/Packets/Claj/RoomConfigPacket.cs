@@ -1,5 +1,5 @@
-﻿using NetClajServer.Claj;
-using NetClajServer.Datastructures;
+﻿using System.Buffers;
+using NetClajServer.Claj;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
@@ -20,7 +20,7 @@ public class RoomConfigPacket: MindustryPacket
 
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         var configFlags =
             (IsPublic ? 1 : 0) << 2
@@ -29,9 +29,9 @@ public class RoomConfigPacket: MindustryPacket
 
         var config = (byte)configFlags;
         
-        writer.Write(config);
-        writer.WriteInt16BigEndian(Pin ?? -1);
-        writer.WriteInt16BigEndian(MaxClients);
+        writer.WriteIntegerBe(config);
+        writer.WriteIntegerBe(Pin ?? -1);
+        writer.WriteIntegerBe(MaxClients);
     }
 
     public override PacketResult TryDeserialize(ref PacketReader reader)

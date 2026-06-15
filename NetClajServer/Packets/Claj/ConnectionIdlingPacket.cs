@@ -1,4 +1,5 @@
-﻿using NetClajServer.Packets.IO;
+﻿using System.Buffers;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
@@ -13,7 +14,7 @@ public class ConnectionIdlingPacket: MindustryPacketWithConId
         // no-op
     }
 
-    protected override void SerializeInnerPayload(BinaryWriter writer)
+    protected override void SerializeInnerPayload(IBufferWriter<byte> writer)
     {
         // no-op
     }

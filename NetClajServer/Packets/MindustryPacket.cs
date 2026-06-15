@@ -1,4 +1,4 @@
-﻿using System.Net.Sockets;
+﻿using System.Buffers;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets;
@@ -34,11 +34,11 @@ public abstract class MindustryPacket
     /// </remarks>
     /// <param name="reader">The binary reader to decode the packet with</param>
     public abstract PacketResult TryDeserialize(ref PacketReader reader);
-    
+
     /// <summary>
     /// Write object attributes into a sequence of bytes. The packet family and identifier have already been
     /// written into the buffer.
     /// </summary>
     /// <param name="writer">The binary writer to write the packet with</param>
-    public abstract void Serialize(BinaryWriter writer);
+    public abstract void Serialize(IBufferWriter<byte> writer);
 }

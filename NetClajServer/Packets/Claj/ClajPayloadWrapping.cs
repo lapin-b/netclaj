@@ -18,9 +18,9 @@ public class ClajPayloadWrapping: MindustryPacketWithConId
         Buffer = reader.ReadRest();
     }
 
-    protected override void SerializeInnerPayload(BinaryWriter writer)
+    protected override void SerializeInnerPayload(IBufferWriter<byte> writer)
     {
-        writer.Write(WrappedPacketIsTcp);
+        writer.WriteBool(WrappedPacketIsTcp);
         foreach (var fragment in Buffer)
         {
             writer.Write(fragment.Span);

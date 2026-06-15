@@ -1,4 +1,4 @@
-﻿using NetClajServer.Datastructures;
+﻿using System.Buffers;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
@@ -12,7 +12,7 @@ public abstract class MindustryPacketWithConId: MindustryPacket
     public override sbyte GetPacketFamily() => Type;
     public abstract override byte GetPacketIdentifier();
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         writer.WriteInt32BigEndian(ConnectionId);
         SerializeInnerPayload(writer);
@@ -27,5 +27,5 @@ public abstract class MindustryPacketWithConId: MindustryPacket
     }
 
     protected abstract void TryDeserializeInnerPayload(ref PacketReader reader);
-    protected abstract void SerializeInnerPayload(BinaryWriter writer);
+    protected abstract void SerializeInnerPayload(IBufferWriter<byte> writer);
 }

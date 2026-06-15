@@ -1,4 +1,5 @@
-﻿using System.Buffers.Binary;
+﻿using System.Buffers;
+using System.Buffers.Binary;
 using NetClajServer.Claj;
 using NetClajServer.Packets.IO;
 using NetClajServer.Packets.Streaming;
@@ -21,7 +22,7 @@ public class RoomListPacket: MindustryPacket, IStreamablePacket
         throw new NotSupportedException();
     }
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         // TODO: write an adapter for writing into an array or a Stream
     }

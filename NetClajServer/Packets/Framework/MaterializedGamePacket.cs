@@ -18,7 +18,7 @@ public class MaterializedGamePacket: GamePacket
         throw new NotSupportedException();
     }
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         writer.Write(Buffer.Span);
     }

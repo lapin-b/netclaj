@@ -1,5 +1,6 @@
-﻿using System.Text;
-using NetClajServer.Datastructures;
+﻿using System.Buffers;
+using System.Runtime.InteropServices;
+using System.Text;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets;
@@ -27,9 +28,9 @@ public struct ClajRoomType
     
     public static implicit operator string (ClajRoomType roomType) => roomType.Type;
 
-    public void Serialize(BinaryWriter writer)
+    public void Serialize(IBufferWriter<byte> writer)
     {
-        writer.Write((byte)Type.Length);
-        writer.Write(Type.AsSpan());
+        writer.WriteIntegerBe((byte)Type.Length);
+        writer.Write(MemoryMarshal.AsBytes(Type.AsSpan()));
     }
 }

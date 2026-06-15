@@ -21,7 +21,7 @@ public class GamePacket: MindustryPacket
         return reader.Result;
     }
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         foreach (var segment in Buffer)
         {

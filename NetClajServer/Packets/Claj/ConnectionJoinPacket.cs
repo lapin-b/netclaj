@@ -1,4 +1,4 @@
-﻿using NetClajServer.Datastructures;
+﻿using System.Buffers;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
@@ -17,8 +17,8 @@ public class ConnectionJoinPacket: MindustryPacketWithConId
         RoomId = reader.ReadRoomId(nameof(RoomId));
     }
 
-    protected override void SerializeInnerPayload(BinaryWriter writer)
+    protected override void SerializeInnerPayload(IBufferWriter<byte> writer)
     {
-        writer.WriteInt64BigEndian(RoomId);
+        writer.WriteIntegerBe(RoomId);
     }
 }

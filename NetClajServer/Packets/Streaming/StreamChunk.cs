@@ -1,4 +1,4 @@
-﻿using NetClajServer.Datastructures;
+﻿using System.Buffers;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Streaming;
@@ -21,11 +21,11 @@ public class StreamChunk: MindustryPacket
         throw new NotSupportedException();
     }
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         writer.WriteInt32BigEndian(StreamId);
-        writer.Write(IsLastChunk);
-        writer.WriteInt16BigEndian((short)Chunk.Length);
+        writer.WriteBool(IsLastChunk);
+        writer.WriteIntegerBe((short)Chunk.Length);
         writer.Write(Chunk.Span);
     }
 }

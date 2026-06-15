@@ -1,5 +1,4 @@
-﻿using System.Text;
-using NetClajServer.Datastructures;
+﻿using System.Buffers;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
@@ -30,14 +29,14 @@ public class RoomCreationRequestPacket: MindustryPacket
         return reader.Result;
     }
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         if (Version == null)
         {
             throw new ArgumentNullException(nameof(Version));
         }
 
-        writer.Write((short)0);
+        writer.WriteIntegerBe((short)0);
         writer.WriteInt32BigEndian((int)Version);
         RoomType.Serialize(writer);
     }

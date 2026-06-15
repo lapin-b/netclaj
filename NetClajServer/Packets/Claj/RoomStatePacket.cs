@@ -1,5 +1,4 @@
 ﻿using System.Buffers;
-using NetClajServer.Datastructures;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
@@ -15,9 +14,9 @@ public class RoomStatePacket: MindustryPacket
 
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
-        writer.WriteUInt16BigEndian((ushort)StateBuffer.Length);
+        writer.WriteIntegerBe((ushort)StateBuffer.Length);
         foreach (var segment in StateBuffer)
         {
             writer.Write(segment.Span);

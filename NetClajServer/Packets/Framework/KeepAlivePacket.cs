@@ -1,4 +1,5 @@
-﻿using NetClajServer.Packets.IO;
+﻿using System.Buffers;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Framework;
 
@@ -10,7 +11,7 @@ public class KeepAlivePacket: MindustryPacket
     public override sbyte GetPacketFamily() => Type;
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         // no-op
     }

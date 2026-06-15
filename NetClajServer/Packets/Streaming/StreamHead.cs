@@ -1,4 +1,4 @@
-﻿using NetClajServer.Datastructures;
+﻿using System.Buffers;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Streaming;
@@ -32,11 +32,11 @@ public class StreamHead: MindustryPacket
         throw new NotSupportedException();
     }
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         writer.WriteInt32BigEndian(Id);
         writer.WriteInt32BigEndian(TotalBytes);
-        writer.Write(InnerPacketIdentifier);
-        writer.Write(IsCompressed);
+        writer.WriteIntegerBe(InnerPacketIdentifier);
+        writer.WriteBool(IsCompressed);
     }
 }

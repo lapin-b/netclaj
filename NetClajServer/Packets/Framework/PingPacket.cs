@@ -1,4 +1,4 @@
-﻿using NetClajServer.Datastructures;
+﻿using System.Buffers;
 using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Framework;
@@ -24,9 +24,9 @@ public class PingPacket: MindustryPacket
         return reader.Result;
     }
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         writer.WriteInt32BigEndian(Id);
-        writer.Write(IsReply);
+        writer.WriteBool(IsReply);
     }
 }

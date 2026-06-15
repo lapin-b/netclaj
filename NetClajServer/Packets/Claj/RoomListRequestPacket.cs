@@ -1,4 +1,5 @@
-﻿using NetClajServer.Packets.IO;
+﻿using System.Buffers;
+using NetClajServer.Packets.IO;
 
 namespace NetClajServer.Packets.Claj;
 
@@ -13,7 +14,7 @@ public class RoomListRequestPacket: MindustryPacket
 
     public override byte GetPacketIdentifier() => Identifier;
 
-    public override void Serialize(BinaryWriter writer)
+    public override void Serialize(IBufferWriter<byte> writer)
     {
         
     }
