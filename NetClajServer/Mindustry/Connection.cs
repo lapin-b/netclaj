@@ -95,7 +95,7 @@ public partial class Connection
             var lengthSpan = _networkWriter.GetSpan(2);
             _networkWriter.Advance(2);
             var length = Serializer.Serialize(packet, _networkWriter);
-            BinaryPrimitives.WriteInt16BigEndian(lengthSpan, (short)length);
+            BinaryPrimitives.WriteInt16BigEndian(lengthSpan[..2], (short)length);
             await _networkWriter.FlushAsync(_cts.Token);
         }
         finally
