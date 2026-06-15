@@ -2,7 +2,7 @@
 
 namespace NetClajServer.Packets;
 
-public struct CountingBufferWritter: IBufferWriter<byte>
+public class CountingBufferWritter: IBufferWriter<byte>
 {
     private readonly IBufferWriter<byte> _inner;
     public int BytesWritten { get; private set; }
