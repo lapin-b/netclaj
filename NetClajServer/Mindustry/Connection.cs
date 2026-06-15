@@ -1,16 +1,13 @@
 ﻿using System.Buffers;
 using System.Buffers.Binary;
-using System.Globalization;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Threading.Channels;
+using CommunityToolkit.HighPerformance.Buffers;
 using Microsoft.Extensions.Logging;
-using Microsoft.IO;
 using NetClajServer.Metrics;
 using NetClajServer.Packets;
-using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
 using NetClajServer.Packets.Streaming;
 
@@ -18,8 +15,6 @@ namespace NetClajServer.Mindustry;
 
 public partial class Connection
 {
-    private static readonly RecyclableMemoryStreamManager MemoryStreamManager = new();
-    
     public int Id { get; }
     public long? ParticipatesInRoomId { get; set; }
 
@@ -103,104 +98,15 @@ public partial class Connection
             _networkWriterLock.Release();
         }
     }
-
-    public Task SendTcp(GamePacket packet)
-    {
-        if(Volatile.Read(ref _closeHasStarted) == 1) return Task.CompletedTask;
-
-        var payloadLength = (int)packet.Buffer.Length;
-        var lengthHeader = ArrayPool<byte>.Shared.Rent(2);
-        BinaryPrimitives.WriteUInt16BigEndian(lengthHeader, (ushort)payloadLength);
-
-        var segments = new List<ArraySegment<byte>> { new(lengthHeader, 0, 2) };
-
-        foreach (var segment in packet.Buffer)
-        {
-            if (MemoryMarshal.TryGetArray(segment, out var arraySegment))
-            {
-                segments.Add(arraySegment);
-            }
-            else
-            {
-                segments.Add(new ArraySegment<byte>(segment.ToArray()));
-            }
-        }
-
-        try
-        {
-            return _tcp.Client.SendAsync(segments);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(lengthHeader);
-        }
-    }
- 
-    public Task SendTcp(ClajPayloadWrapping packet)
-    {
-        if(Volatile.Read(ref _closeHasStarted) == 1) return Task.CompletedTask;
-        
-        /*
-         * Payload:
-         *  Packet header:
-         *      - 2 bytes: packet type and family
-         *      - 4 bytes: connection ID this packet comes from or goes to
-         *      - 1 byte: isTCP flag
-         *  Packet body:
-         *      - n bytes
-         */
-        var preludePacketSize = 2 + 4 + 1 + (int)packet.Buffer.Length;
-        
-        /*
-         * Prelude:
-         * - 2 bytes: payload length
-         * Packet header:
-         * - 2 bytes: packet type and family
-         * - 4 bytes: connection ID this packet came from or goes to
-         * - 1 byte: isTCP flag
-         */
-        var packetBegginingSize = 2 + 2 + 4 + 1;
-        var header = ArrayPool<byte>.Shared.Rent(packetBegginingSize);
-        
-        BinaryPrimitives.WriteUInt16BigEndian(header.AsSpan(0, 2), (ushort)preludePacketSize);
-        header[2] = (byte)packet.GetPacketFamily();
-        header[3] = packet.GetPacketIdentifier();
-        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(4, 4), packet.ConnectionId);
-        header[8] = (byte)(packet.TransportIsTcp ? 1 : 0);
-        
-        var segments = new List<ArraySegment<byte>> { new(header, 0, packetBegginingSize) };
-        
-        foreach (var segment in packet.Buffer)
-        {
-            if (MemoryMarshal.TryGetArray(segment, out var arraySegment))
-            {
-                segments.Add(arraySegment);
-            }
-            else
-            {
-                segments.Add(new ArraySegment<byte>(segment.ToArray()));
-            }
-        }
-
-        try
-        {
-            return _tcp.Client.SendAsync(segments);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(header);
-        }
-    }
     
     public ValueTask SendUdp(MindustryPacket packet)
     {
         if (Volatile.Read(ref _closeHasStarted) == 1) return ValueTask.CompletedTask;
+
+        using var buffer = new ArrayPoolBufferWriter<byte>();
         
-        using var memoryStream = MemoryStreamManager.GetStream();
-        
-        Serializer.Serialize(packet, memoryStream, false);
-        var writtenBytes = memoryStream.GetBuffer().AsMemory(0, (int)memoryStream.Length);
-        var task = _udp.SendAsync(writtenBytes, UdpEndpoint, _cts.Token);
+        Serializer.Serialize(packet, buffer, false);
+        var task = _udp.SendAsync(buffer.WrittenMemory, UdpEndpoint, _cts.Token);
 
         return task.IsCompletedSuccessfully 
             ? ValueTask.CompletedTask 
