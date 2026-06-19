@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Files/">
     <File Path=".gitignore" />
+    <File Path="README.md" />
   </Folder>
   <Project Path="NetClajServer/NetClajServer.csproj" />
   <Project Path="StressTestHarness/StressTestHarness.csproj" />
