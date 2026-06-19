@@ -6,6 +6,8 @@ public class ServerMetrics
 {
     public ObservableCounter<long> PacketsProcessed { get; private init;  }
     public ObservableGauge<long> PacketsPerSecond { get; private init; }
+    
+    public Histogram<long> PacketProcessHistogram { get; private init; }
 
     private long _totalPacketsProcessed = 0;
     private long _lastTotalPacketsProcessed = 0;
@@ -26,6 +28,8 @@ public class ServerMetrics
             () => _packetsPerSecond,
             "pps"
         );
+
+        PacketProcessHistogram = meter.CreateHistogram<long>("Time to process", "ms", "Time to process a packet");
     }
 
     public void IncrementIncomingPacketsProcessed()

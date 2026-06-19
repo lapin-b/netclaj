@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
@@ -35,6 +36,9 @@ public partial class Connection
     // Connection state management and shutdown tasks
     private readonly CancellationTokenSource _cts = new();
     private Task _receiveLoopTask = Task.CompletedTask;
+    
+    // Metrics
+    private Stopwatch _packetsWatch = new();
     
     // Making connection closure more robust
     private int _closeHasStarted = 0;
@@ -174,14 +178,23 @@ public partial class Connection
 
                 while (TryReadFrame(ref buffer, out var payload))
                 {
+                    _packetsWatch.Start(); // Start timer from the top of the loop
+
                     DebugRecvBytes(payload);
                     var mindustryPacket = Serializer.Deserialize(payload);
                     mindustryPacket.TransportIsTcp = true;
                     DebugRecvPacket(mindustryPacket);
 
                     var task = ProcessDeserializedPacket(mindustryPacket);
-                    if (task.IsCompletedSuccessfully) continue;
-                    await task;
+
+                    if (!task.IsCompletedSuccessfully)
+                    {
+                        await task;
+                    }
+
+                    _packetsWatch.Stop();
+                    _metrics.PacketProcessHistogram.Record(_packetsWatch.ElapsedMilliseconds);
+                    _packetsWatch.Reset();
                 }
 
                 _networkReader.AdvanceTo(buffer.Start, buffer.End);

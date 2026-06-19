@@ -1,12 +1,11 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NetClajServer.Claj;
-using NetClajServer.Claj.Handlers;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Datastructures;
+using NetClajServer.Metrics;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
 using NetClajServer.Packets.Framework;
@@ -17,6 +16,7 @@ public class MindustryServer
 {
     private readonly ILogger<MindustryServer> _logger;
     private readonly SessionsManager _sessionsManager;
+    private readonly ServerMetrics _metrics;
 
     // Packet routing
     private readonly Dictionary<Type, Func<PacketContext, MindustryPacket, ValueTask>> _router = new();
@@ -27,6 +27,8 @@ public class MindustryServer
     private Task? _tcpServerTask;
     private Task? _udpServerTask;
 
+    private Stopwatch _udpWatch = new();
+
     // The cancellation token source is set when the server starts and
     // unset when the server stops. The downstream code shouldn't get
     // a null value.
@@ -36,11 +38,13 @@ public class MindustryServer
         ClajServerConfiguration config, 
         ILogger<MindustryServer> logger,
         SessionsManager sessionsManager,
-        IServiceProvider provider
+        IServiceProvider provider,
+        ServerMetrics metrics
     )
     {
         _logger = logger;
         _sessionsManager = sessionsManager;
+        _metrics = metrics;
 
         _tcpListener = new TcpListener(IPAddress.Parse(config.IPAddress), config.Port);
         _udpListener = new UdpClient(new IPEndPoint(IPAddress.Parse(config.IPAddress), config.Port));
@@ -174,6 +178,7 @@ public class MindustryServer
             try
             {
                 message = await _udpListener.ReceiveAsync(ct);
+                _udpWatch.Start();
                 // An UDP packet has no length prefix, no need to strip it from the buffer
                 packet = Serializer.Deserialize(message.Buffer);
                 packet.TransportIsTcp = false;
@@ -191,17 +196,31 @@ public class MindustryServer
                         await sendRegisterUdpTask;
                     }
                 
+                    _udpWatch.Stop();
+                    _metrics.PacketProcessHistogram.Record(_udpWatch.ElapsedMilliseconds);
+                    _udpWatch.Reset();
+
                     continue;
                 }
 
                 if (_sessionsManager.GetConnectionByUdpEndpoint(message.RemoteEndPoint) is not { } fromConnection)
                 {
+                    _udpWatch.Stop();
+                    _metrics.PacketProcessHistogram.Record(_udpWatch.ElapsedMilliseconds);
+                    _udpWatch.Reset();
+                    
                     continue;
                 }
 
                 var processingTask = fromConnection.ProcessDeserializedPacket(packet);
-                if (processingTask.IsCompletedSuccessfully) continue;
-                await processingTask;
+                if (!processingTask.IsCompletedSuccessfully)
+                {
+                    await processingTask;
+                }
+                
+                _udpWatch.Stop();
+                _metrics.PacketProcessHistogram.Record(_udpWatch.ElapsedMilliseconds);
+                _udpWatch.Reset();
             }
             catch (OperationCanceledException)
             {
