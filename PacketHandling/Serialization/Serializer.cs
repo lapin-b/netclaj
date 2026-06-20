@@ -1,12 +1,11 @@
 ﻿using System.Buffers;
-using NetClajServer.Datastructures;
-using PacketHandling;
+using NetClajServer.Mindustry;
 using PacketHandling.Claj;
 using PacketHandling.Framework;
 using PacketHandling.IO;
 using PacketHandling.Streaming;
 
-namespace NetClajServer.Mindustry;
+namespace PacketHandling.Serialization;
 
 public static class Serializer
 {

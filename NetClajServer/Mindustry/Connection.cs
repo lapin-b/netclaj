@@ -10,6 +10,7 @@ using NetClajServer.Metrics;
 using NetClajServer.Packets.Streaming;
 using PacketHandling;
 using PacketHandling.Framework;
+using PacketHandling.Serialization;
 using PacketHandling.Streaming;
 
 namespace NetClajServer.Mindustry;

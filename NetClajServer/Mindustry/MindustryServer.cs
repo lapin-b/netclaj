@@ -7,6 +7,7 @@ using NetClajServer.Datastructures;
 using PacketHandling;
 using PacketHandling.Claj;
 using PacketHandling.Framework;
+using PacketHandling.Serialization;
 
 namespace NetClajServer.Mindustry;
 
