@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
 
-namespace PacketHandling;
+namespace PacketHandling.Serialization;
 
 public class CountingBufferWritter: IBufferWriter<byte>
 {
