@@ -25,34 +25,6 @@ public static class Serializer
         return countingBuffer.BytesWritten;
     }
 
-    public static ReadOnlyMemory<byte> Serialize(List<MindustryPacket> packets, MemoryStream memoryStream, BinaryWriter binaryWriter, bool isTcp = true)
-    {
-        foreach (var packet in packets)
-        {
-            var packetStartPosition = (int)memoryStream.Position;
-            memoryStream.Seek(2, SeekOrigin.Current);
-            
-            if (packet is not GamePacket)
-            {
-                binaryWriter.Write(packet.GetPacketFamily());
-                binaryWriter.Write(packet.GetPacketIdentifier());
-            }
-            
-            //packet.Serialize(binaryWriter);
-
-            if (isTcp)
-            {
-                var packetEndPosition = (int)memoryStream.Position;
-                var packetLength = (int)(memoryStream.Position - packetStartPosition - 2);
-                binaryWriter.Seek(packetStartPosition, SeekOrigin.Begin);
-                binaryWriter.WriteInt16BigEndian((short)packetLength);
-                binaryWriter.Seek(packetEndPosition, SeekOrigin.Begin);
-            }
-        }
-        
-        return memoryStream.GetBuffer().AsMemory(0, (int)memoryStream.Length);
-    }
-
     public static MindustryPacket Deserialize(ReadOnlyMemory<byte> payload)
     {
         return Deserialize(new ReadOnlySequence<byte>(payload));
