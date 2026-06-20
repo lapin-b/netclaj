@@ -193,7 +193,7 @@ public partial class Connection
                     }
 
                     _packetsWatch.Stop();
-                    _metrics.PacketProcessHistogram.Record(_packetsWatch.ElapsedMilliseconds);
+                    _metrics.PacketProcessHistogram.Record(_packetsWatch.Elapsed.TotalMilliseconds);
                     _packetsWatch.Reset();
                 }
 

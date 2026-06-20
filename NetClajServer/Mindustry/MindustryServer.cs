@@ -206,7 +206,7 @@ public class MindustryServer
                 if (_sessionsManager.GetConnectionByUdpEndpoint(message.RemoteEndPoint) is not { } fromConnection)
                 {
                     _udpWatch.Stop();
-                    _metrics.PacketProcessHistogram.Record(_udpWatch.ElapsedMilliseconds);
+                    _metrics.PacketProcessHistogram.Record(_udpWatch.Elapsed.TotalMilliseconds);
                     _udpWatch.Reset();
                     
                     continue;
@@ -219,7 +219,7 @@ public class MindustryServer
                 }
                 
                 _udpWatch.Stop();
-                _metrics.PacketProcessHistogram.Record(_udpWatch.ElapsedMilliseconds);
+                _metrics.PacketProcessHistogram.Record(_udpWatch.Elapsed.TotalMilliseconds);
                 _udpWatch.Reset();
             }
             catch (OperationCanceledException)
