@@ -2,8 +2,9 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using PacketHandling.IO;
+using PacketHandling.Serialization;
 
-namespace PacketHandling;
+namespace PacketHandling.Support;
 
 public struct ClajRoomType
 {

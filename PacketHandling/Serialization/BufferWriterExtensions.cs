@@ -2,7 +2,7 @@
 using System.Numerics;
 using PacketHandling.IO;
 
-namespace PacketHandling;
+namespace PacketHandling.Serialization;
 
 public static class BufferWriterExtensions
 {

@@ -1,4 +1,4 @@
-﻿namespace PacketHandling;
+﻿namespace PacketHandling.Framework;
 
 public enum ArcNetDcReason
 {

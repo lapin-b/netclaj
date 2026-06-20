@@ -1,4 +1,4 @@
-﻿namespace PacketHandling;
+﻿namespace PacketHandling.Support;
 
 public enum ClajConnectionCloseReason
 {

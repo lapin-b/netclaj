@@ -2,6 +2,7 @@
 using System.Buffers.Binary;
 using PacketHandling.IO;
 using PacketHandling.Streaming;
+using PacketHandling.Support;
 
 namespace PacketHandling.Claj;
 

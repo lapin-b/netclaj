@@ -1,4 +1,4 @@
-﻿namespace NetClajServer.Mindustry;
+﻿namespace PacketHandling.Serialization;
 
 public class SerializerException: Exception
 {

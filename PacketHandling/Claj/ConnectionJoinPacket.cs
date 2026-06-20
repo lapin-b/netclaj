@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using PacketHandling.IO;
+using PacketHandling.Serialization;
 
 namespace PacketHandling.Claj;
 
