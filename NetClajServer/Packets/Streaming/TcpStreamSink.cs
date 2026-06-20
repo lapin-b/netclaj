@@ -1,9 +1,10 @@
 ﻿using System.Buffers;
 using NetClajServer.Mindustry;
+using PacketHandling.Streaming;
 
 namespace NetClajServer.Packets.Streaming;
 
-public class TcpStreamSink: IDisposable
+public class TcpStreamSink: IDisposable, IStreamSink
 {
     private const int ChunkSize = 2048;
     

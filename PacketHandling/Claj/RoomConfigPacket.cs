@@ -47,16 +47,4 @@ public class RoomConfigPacket: MindustryPacket
         
         return reader.Result;
     }
-
-    public RoomConfiguration IntoRoomConfiguration()
-    {
-        return new RoomConfiguration
-        {
-            IsPublic = IsPublic,
-            IsProtectedByPin = IsProtectedByPin,
-            CanRequestHostState = CanRequestHostState,
-            Pin = Pin,
-            MaxClients = MaxClients
-        };
-    }
 }

@@ -3,6 +3,8 @@ using System.Buffers.Binary;
 using NetClajServer.Claj;
 using NetClajServer.Packets.IO;
 using NetClajServer.Packets.Streaming;
+using PacketHandling;
+using PacketHandling.Streaming;
 
 namespace NetClajServer.Packets.Claj;
 
@@ -11,7 +13,7 @@ public class RoomListPacket: MindustryPacket, IStreamablePacket
     public const sbyte Type = PacketType.Claj;
     public const byte Identifier = 19;
 
-    public List<Room> Rooms { get; set; } = [];
+    public List<RoomListItem> Rooms { get; set; } = [];
     
     public override sbyte GetPacketFamily() => Type;
 
@@ -34,7 +36,7 @@ public class RoomListPacket: MindustryPacket, IStreamablePacket
         return sizeof(long) + roomsPayloadLength;
     }
    
-    public async ValueTask StreamChunks(TcpStreamSink sink)
+    public async ValueTask StreamChunks(IStreamSink sink)
     {
         var b1 = new byte[1];
         var i16 = new byte[2];
@@ -49,7 +51,7 @@ public class RoomListPacket: MindustryPacket, IStreamablePacket
             BinaryPrimitives.WriteInt64BigEndian(i64, room.Id);
             await sink.Write(i64);
 
-            b1[0] = (byte)(room.Configuration.IsProtectedByPin ? 1 : 0);
+            b1[0] = (byte)(room.IsProtectedByPin ? 1 : 0);
             await sink.Write(b1);
             
             BinaryPrimitives.WriteInt16BigEndian(i16, (short)room.State.Length);
@@ -60,5 +62,5 @@ public class RoomListPacket: MindustryPacket, IStreamablePacket
     }
 
     // Room id + is protected flag + state length + state itself
-    private static int RoomPacketSize(Room room) => sizeof(long) + sizeof(bool) + sizeof(ushort) + room.State.Length;
+    private static int RoomPacketSize(RoomListItem room) => sizeof(long) + sizeof(bool) + sizeof(ushort) + room.State.Length;
 }

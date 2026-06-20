@@ -4,6 +4,7 @@ using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Mindustry;
 using NetClajServer.Packets;
 using NetClajServer.Packets.Claj;
+using PacketHandling;
 
 namespace NetClajServer.Claj.Handlers;
 
@@ -124,16 +125,3 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
     }
 }
 
-public enum RoomRejection: byte
-{
-    Error,
-    ServerFull,
-    ServerClosing,
-    NotFound,
-    RoomFull,
-    PinRequired,
-    InvalidPin,
-    Incompatible,
-    
-    Success = 255,
-}

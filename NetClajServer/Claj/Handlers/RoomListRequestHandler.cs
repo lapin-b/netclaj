@@ -52,7 +52,7 @@ public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
 
         var replyPacket = new RoomListPacket
         {
-            Rooms = roomList
+            Rooms = roomList.Select(Room.IntoRoomListItem).ToList()
         };
 
         await context.Connection.SendStreaming(replyPacket);
