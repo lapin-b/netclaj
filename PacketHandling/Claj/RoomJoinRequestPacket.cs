@@ -1,5 +1,5 @@
 ﻿
-namespace NetClajServer.Packets.Claj;
+namespace PacketHandling.Claj;
 
 // Exists for compatibility with older claj client versions
 public class RoomJoinRequestPacket: RoomJoinPacket

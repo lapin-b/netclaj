@@ -1,15 +1,12 @@
-﻿using System.Collections.Concurrent;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NetClajServer.Claj;
-using NetClajServer.Claj.Handlers;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Datastructures;
-using NetClajServer.Packets;
-using NetClajServer.Packets.Claj;
-using NetClajServer.Packets.Framework;
+using PacketHandling;
+using PacketHandling.Claj;
+using PacketHandling.Framework;
 
 namespace NetClajServer.Mindustry;
 

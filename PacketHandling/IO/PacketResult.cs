@@ -1,4 +1,4 @@
-﻿namespace NetClajServer.Packets.IO;
+﻿namespace PacketHandling.IO;
 
 public readonly record struct PacketResult(
     PacketErrorCode Code,

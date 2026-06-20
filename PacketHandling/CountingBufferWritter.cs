@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
 
-namespace NetClajServer.Packets;
+namespace PacketHandling;
 
 public class CountingBufferWritter: IBufferWriter<byte>
 {

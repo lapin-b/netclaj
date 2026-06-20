@@ -1,4 +1,4 @@
-﻿namespace NetClajServer.Packets.IO;
+﻿namespace PacketHandling.IO;
 
 public ref struct PacketIntermediateProcessing<T>
 {

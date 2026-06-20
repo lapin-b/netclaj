@@ -1,12 +1,9 @@
 ﻿using System.Buffers;
 using System.Buffers.Binary;
-using NetClajServer.Claj;
-using NetClajServer.Packets.IO;
-using NetClajServer.Packets.Streaming;
-using PacketHandling;
+using PacketHandling.IO;
 using PacketHandling.Streaming;
 
-namespace NetClajServer.Packets.Claj;
+namespace PacketHandling.Claj;
 
 public class RoomListPacket: MindustryPacket, IStreamablePacket
 {

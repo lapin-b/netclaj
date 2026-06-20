@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
-using NetClajServer.Packets.IO;
+using PacketHandling.IO;
 
-namespace NetClajServer.Packets.Streaming;
+namespace PacketHandling.Streaming;
 
 public class StreamChunk: MindustryPacket
 {

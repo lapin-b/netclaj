@@ -1,6 +1,4 @@
-﻿using PacketHandling.Streaming;
-
-namespace NetClajServer.Packets.Streaming;
+﻿namespace PacketHandling.Streaming;
 
 public interface IStreamablePacket
 {

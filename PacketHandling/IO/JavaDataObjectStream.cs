@@ -1,4 +1,4 @@
-﻿namespace NetClajServer.Packets.IO;
+﻿namespace PacketHandling.IO;
 
 public class UtfDataFormatException(string? message) : Exception(message);
 

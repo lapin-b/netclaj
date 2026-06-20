@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
 using Microsoft.Extensions.Logging;
-using NetClajServer.Packets;
-using NetClajServer.Packets.Framework;
+using PacketHandling;
+using PacketHandling.Framework;
 
 namespace NetClajServer.Mindustry;
 

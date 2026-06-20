@@ -1,4 +1,4 @@
-﻿namespace NetClajServer.Packets;
+﻿namespace PacketHandling;
 
 public static class PacketType
 {

@@ -1,9 +1,8 @@
-﻿using System.Net.Mime;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Mindustry;
-using NetClajServer.Packets;
-using NetClajServer.Packets.Claj;
+using PacketHandling;
+using PacketHandling.Claj;
 
 namespace NetClajServer.Claj.Handlers;
 

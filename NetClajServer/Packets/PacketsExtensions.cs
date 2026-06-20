@@ -1,5 +1,5 @@
 ﻿using NetClajServer.Claj;
-using NetClajServer.Packets.Claj;
+using PacketHandling.Claj;
 
 namespace NetClajServer.Packets;
 

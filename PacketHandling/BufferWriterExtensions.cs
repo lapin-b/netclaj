@@ -1,8 +1,8 @@
 ﻿using System.Buffers;
 using System.Numerics;
-using NetClajServer.Packets.IO;
+using PacketHandling.IO;
 
-namespace NetClajServer.Packets;
+namespace PacketHandling;
 
 public static class BufferWriterExtensions
 {

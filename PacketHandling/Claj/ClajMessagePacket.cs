@@ -1,8 +1,7 @@
 ﻿using System.Buffers;
-using NetClajServer.Claj;
-using NetClajServer.Packets.IO;
+using PacketHandling.IO;
 
-namespace NetClajServer.Packets.Claj;
+namespace PacketHandling.Claj;
 
 public class ClajMessagePacket: MindustryPacket
 {

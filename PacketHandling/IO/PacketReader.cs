@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace NetClajServer.Packets.IO;
+namespace PacketHandling.IO;
 
 /// <summary>
 /// Helper to deserialize Mindustry packets from a <see cref="ReadOnlySequence{T}"/>.

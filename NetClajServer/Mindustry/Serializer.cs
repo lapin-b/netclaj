@@ -1,11 +1,10 @@
 ﻿using System.Buffers;
-using System.IO.Pipelines;
 using NetClajServer.Datastructures;
-using NetClajServer.Packets;
-using NetClajServer.Packets.Claj;
-using NetClajServer.Packets.Framework;
-using NetClajServer.Packets.IO;
-using NetClajServer.Packets.Streaming;
+using PacketHandling;
+using PacketHandling.Claj;
+using PacketHandling.Framework;
+using PacketHandling.IO;
+using PacketHandling.Streaming;
 
 namespace NetClajServer.Mindustry;
 

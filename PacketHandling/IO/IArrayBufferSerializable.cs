@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
 
-namespace NetClajServer.Packets.IO;
+namespace PacketHandling.IO;
 
 public interface IArrayBufferSerializable
 {

@@ -1,9 +1,9 @@
 ﻿using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Text;
-using NetClajServer.Packets.IO;
+using PacketHandling.IO;
 
-namespace NetClajServer.Packets;
+namespace PacketHandling;
 
 public struct ClajRoomType
 {

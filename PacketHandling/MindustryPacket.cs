@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
-using NetClajServer.Packets.IO;
+using PacketHandling.IO;
 
-namespace NetClajServer.Packets;
+namespace PacketHandling;
 
 /// <summary>
 /// Base packet of the binary protocol processed by a CLaJ node

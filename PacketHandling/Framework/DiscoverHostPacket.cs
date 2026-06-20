@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
-using NetClajServer.Packets.IO;
+using PacketHandling.IO;
 
-namespace NetClajServer.Packets.Framework;
+namespace PacketHandling.Framework;
 
 public class DiscoverHostPacket : MindustryPacket
 {

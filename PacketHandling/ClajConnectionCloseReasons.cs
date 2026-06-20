@@ -1,4 +1,4 @@
-﻿namespace NetClajServer.Claj;
+﻿namespace PacketHandling;
 
 public enum ClajConnectionCloseReason
 {
