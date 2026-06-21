@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Mindustry;
-using NetClajServer.Packets;
-using NetClajServer.Packets.Claj;
-using NetClajServer.Packets.Framework;
+using PacketHandling;
+using PacketHandling.Claj;
+using PacketHandling.Framework;
 
 namespace NetClajServer.Claj.Handlers;
 

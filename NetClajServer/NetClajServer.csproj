@@ -23,5 +23,9 @@
         <None Update="appsettings.json" CopyToOutputDirectory="Always"/>
         <None Update="appsettings.Development.json" CopyToOutputDirectory="Always"/>
     </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\PacketHandling\PacketHandling.csproj" />
+    </ItemGroup>
 
 </Project>

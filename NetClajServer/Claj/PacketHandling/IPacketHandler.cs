@@ -1,4 +1,4 @@
-﻿using NetClajServer.Packets;
+﻿using PacketHandling;
 
 namespace NetClajServer.Claj.PacketHandling;
 

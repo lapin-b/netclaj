@@ -1,14 +1,15 @@
-﻿using System.Diagnostics;
 using System.Net;
+using System.Diagnostics;
 using System.Net.Sockets;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Datastructures;
 using NetClajServer.Metrics;
-using NetClajServer.Packets;
-using NetClajServer.Packets.Claj;
-using NetClajServer.Packets.Framework;
+using PacketHandling;
+using PacketHandling.Claj;
+using PacketHandling.Framework;
+using PacketHandling.Serialization;
 
 namespace NetClajServer.Mindustry;
 

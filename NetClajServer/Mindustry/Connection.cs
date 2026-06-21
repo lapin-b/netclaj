@@ -8,9 +8,11 @@ using System.Threading.Channels;
 using CommunityToolkit.HighPerformance.Buffers;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Metrics;
-using NetClajServer.Packets;
-using NetClajServer.Packets.Framework;
 using NetClajServer.Packets.Streaming;
+using PacketHandling;
+using PacketHandling.Framework;
+using PacketHandling.Serialization;
+using PacketHandling.Streaming;
 
 namespace NetClajServer.Mindustry;
 

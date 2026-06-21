@@ -4,5 +4,6 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="NetClajServer/NetClajServer.csproj" />
+  <Project Path="PacketHandling/PacketHandling.csproj" />
   <Project Path="StressTestHarness/StressTestHarness.csproj" />
 </Solution>

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Mindustry;
-using NetClajServer.Packets.Claj;
+using PacketHandling.Claj;
 
 namespace NetClajServer.Claj.Handlers;
 
@@ -52,7 +52,7 @@ public class RoomListRequestHandler: IPacketHandler<RoomListRequestPacket>
 
         var replyPacket = new RoomListPacket
         {
-            Rooms = roomList
+            Rooms = roomList.Select(Room.IntoRoomListItem).ToList()
         };
 
         await context.Connection.SendStreaming(replyPacket);

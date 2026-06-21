@@ -4,9 +4,10 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using NetClajServer.Claj.PacketHandling;
 using NetClajServer.Mindustry;
-using NetClajServer.Packets;
-using NetClajServer.Packets.Claj;
-using NetClajServer.Packets.Framework;
+using PacketHandling;
+using PacketHandling.Claj;
+using PacketHandling.Framework;
+using PacketHandling.Support;
 
 namespace NetClajServer.Claj;
 
@@ -252,4 +253,6 @@ public partial class Room
             await _roomClosedTcs.Task;
         }
     }
+
+    public static RoomListItem IntoRoomListItem(Room room) => new(room.Id, room.Configuration.IsProtectedByPin, room.State);
 }
