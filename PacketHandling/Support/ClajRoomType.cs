@@ -6,7 +6,7 @@ using PacketHandling.Serialization;
 
 namespace PacketHandling.Support;
 
-public struct ClajRoomType
+public record struct ClajRoomType
 {
     public static readonly ClajRoomType Empty = new();
     
