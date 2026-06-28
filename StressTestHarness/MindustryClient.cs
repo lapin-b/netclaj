@@ -1,10 +1,16 @@
 ﻿using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
-using System.Globalization;
+using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
+using CommunityToolkit.HighPerformance.Buffers;
+using PacketHandling;
+using PacketHandling.Framework;
+using PacketHandling.IO;
+using PacketHandling.Serialization;
 
 namespace StressTestHarness;
 
@@ -19,6 +25,9 @@ public class MindustryClient
     private readonly TcpClient _client;
     private readonly UdpClient _udpClient;
     private readonly NetworkStream _netStream;
+    private readonly PipeReader _networkReader;
+    private readonly PipeWriter _networkWriter;
+    private readonly SemaphoreSlim _networkWriterLock = new(1, 1);
     
     private readonly byte[] _buffer = new byte[16 * 1024];
     private int _bufferPosition;
@@ -45,28 +54,31 @@ public class MindustryClient
         _udpClient = new UdpClient(host, port);
         _netStream = _client.GetStream();
 
+        _networkReader = PipeReader.Create(_netStream);
+        _networkWriter = PipeWriter.Create(_netStream);
+
         _linkedCancel = CancellationTokenSource.CreateLinkedTokenSource(globalCancel, _ownCancel.Token);
     }
 
     public async Task ExecuteHandshake()
     {
         // Get connection ID
-        var connectionIdBuffer = await ReadOneFrame();
-        ConnectionId = BinaryPrimitives.ReadInt32BigEndian(connectionIdBuffer.AsSpan()[2..]);
+        var connectionIdBuffer = await ReadOneFrameOf<RegisterTcpPacket>();
+        ConnectionId = connectionIdBuffer.ConnectionId;
         
         // Send registration over UDP
-        await _udpClient.SendAsync(new byte[] { 0xFE, 3, connectionIdBuffer[2], connectionIdBuffer[3], connectionIdBuffer[4], connectionIdBuffer[5] });
-        var registredFrame = await ReadOneFrame();
-
+        var registration = new RegisterUdpPacket { ConnectionId = ConnectionId };
+        await SendUdp(registration);
+        
         // Confirm registration was successful
-        if (registredFrame[0] != 0xFE || registredFrame[1] != 3)
-            throw new IOException("Unexpected packer other than registration");
+        await ReadOneFrameOf<RegisterUdpPacket>();
     }
 
     public async Task CreateRoom()
     {
         await SendTcp(BuildCreateRoomPacket(RoomType), _linkedCancel.Token);
-        var roomIdBuffer = await ReadOneFrame();
+        // TODO: Use new packet reading mechanism
+        var roomIdBuffer = (await ReadOneFrameBytes()).ToArray();
         if (roomIdBuffer[0] != 0xFC || roomIdBuffer[1] != 0x0B)
             throw new IOException("Expected room");
 
@@ -120,7 +132,8 @@ public class MindustryClient
             byte[] frame;
             try
             {
-                frame = await ReadOneFrame();
+                // TODO: Use new packet reading mechanism
+                frame = (await ReadOneFrameBytes()).ToArray();
             }
             catch (SocketException e) when (e.SocketErrorCode is SocketError.ConnectionReset
                                                 or SocketError.ConnectionAborted)
@@ -237,47 +250,54 @@ public class MindustryClient
             await Task.Delay(CalculateDelay(), ct);
         }
     }
+
+
+    private async Task<T> ReadOneFrameOf<T>()
+        where T: MindustryPacket
+    {
+        var bytes = await ReadOneFrameBytes();
+        var packet = Serializer.Deserialize(bytes);
+        if (packet is T expectedPacket)
+        {
+            return expectedPacket;
+        }
+
+        throw new Exception($"Expected packet {typeof(T)}, got {packet.GetType()}");
+    }
     
-    private async Task<byte[]> ReadOneFrame()
+    private async Task<MindustryPacket> ReadOneFrame()
+    {
+        return Serializer.Deserialize(await ReadOneFrameBytes());
+    }
+
+    private async Task<byte[]> ReadOneFrameBytes()
     {
         _linkedCancel.Token.ThrowIfCancellationRequested();
 
         while (true)
         {
-            var freeSpace = _bufferEndPosition - _bufferPosition;
+            var readResult = await _networkReader.ReadAsync();
+            var buffer = readResult.Buffer;
 
-            if (freeSpace >= 2)
+            if (PacketSlicer.TryReadFrame(ref buffer, out var payload))
             {
-                var packetLength = (_buffer[_bufferPosition] << 8) | _buffer[_bufferPosition + 1];
+                var payloadCopy = payload.ToArray();
+                // See NetClajServer.Mindustry.Connection.ReceiveLoop for the explanation of the
+                // arguments "consumed" and "examined".
+                //
+                // This time we're telling the pipe reader we examined to the start of unread data
+                // represented by buffer.
+                _networkReader.AdvanceTo(buffer.Start, buffer.Start);
 
-                if (packetLength is < 0 or > 8 * 1024)
-                {
-                    throw new InvalidDataException($"Invalid frame length {packetLength}");
-                }
-
-                if (freeSpace >= packetLength + 2)
-                {
-                    var payload = new byte[packetLength];
-                    Buffer.BlockCopy(_buffer, _bufferPosition + 2, payload, 0, packetLength);
-                    _bufferPosition += 2 + packetLength;
-                    return payload;
-                }
+                return payloadCopy;
             }
             
-            if (_bufferPosition > 0)
-            {
-                Buffer.BlockCopy(_buffer, _bufferPosition, _buffer, 0, _bufferEndPosition - _bufferPosition);
-                _bufferEndPosition -= _bufferPosition;
-                _bufferPosition = 0;
-            }
+            // Tell the PipeReader we need more data to form a complete Mindustry frame
+            _networkReader.AdvanceTo(buffer.Start, buffer.End);
 
-            var read = await _netStream.ReadAsync(_buffer.AsMemory(_bufferEndPosition), _linkedCancel.Token);
-            if (read == 0) throw new IOException("Remote closed");
-            _bufferEndPosition += read;
-
-            if (_bufferEndPosition == _buffer.Length)
+            if (readResult.IsCompleted)
             {
-                throw new IOException("Buffer full, packet too long");
+                throw new IOException("Connection closed while waiting for a packet");
             }
         }
     }
@@ -308,6 +328,35 @@ public class MindustryClient
         {
             ArrayPool<byte>.Shared.Return(header);
         }
+    }
+
+    private async Task SendTcp(MindustryPacket packet, CancellationToken ct)
+    {
+        try
+        {
+            await _networkWriterLock.WaitAsync(ct);
+            var lengthSpan = _networkWriter.GetSpan(2);
+            _networkWriter.Advance(2);
+            var length = Serializer.Serialize(packet, _networkWriter);
+            BinaryPrimitives.WriteInt16BigEndian(lengthSpan[..2], (short)length);
+            await _networkWriter.FlushAsync(ct);
+        }
+        finally
+        {
+            _networkWriterLock.Release();
+        }
+    }
+    
+    public ValueTask SendUdp(MindustryPacket packet)
+    {
+        using var buffer = new ArrayPoolBufferWriter<byte>();
+        
+        Serializer.Serialize(packet, buffer, false);
+        var task = _udpClient.SendAsync(buffer.WrittenMemory);
+
+        return task.IsCompletedSuccessfully 
+            ? ValueTask.CompletedTask 
+            : new ValueTask(task.AsTask());
     }
     
     private ReadOnlyMemory<byte> RandomBullshitGo(int packetSize, int packetContentClass, bool sentOverTcp)

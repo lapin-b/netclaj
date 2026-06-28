@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.2" />
       <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.8" />
       <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.8" />
       <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
@@ -16,6 +17,10 @@
     <ItemGroup>
         <None Update="appsettings.json" CopyToOutputDirectory="Always"/>
         <None Update="appsettings.Development.json" CopyToOutputDirectory="Always"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\PacketHandling\PacketHandling.csproj" />
     </ItemGroup>
 
 </Project>
