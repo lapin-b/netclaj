@@ -113,7 +113,7 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
             return RoomRejection.Incompatible;
         }
 
-        if (room.Configuration.IsProtectedByPin && !reqWithPin)
+        if (room.Configuration.IsProtectedByPin)
         {
             if (!reqWithPin)
             {
