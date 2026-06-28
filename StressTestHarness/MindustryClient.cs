@@ -4,13 +4,14 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text;
 using CommunityToolkit.HighPerformance.Buffers;
 using PacketHandling;
+using PacketHandling.Claj;
 using PacketHandling.Framework;
 using PacketHandling.IO;
 using PacketHandling.Serialization;
+using PacketHandling.Support;
 
 namespace StressTestHarness;
 
@@ -76,23 +77,41 @@ public class MindustryClient
 
     public async Task CreateRoom()
     {
-        await SendTcp(BuildCreateRoomPacket(RoomType), _linkedCancel.Token);
-        // TODO: Use new packet reading mechanism
-        var roomIdBuffer = (await ReadOneFrameBytes()).ToArray();
-        if (roomIdBuffer[0] != 0xFC || roomIdBuffer[1] != 0x0B)
-            throw new IOException("Expected room");
-
-        RoomId = BinaryPrimitives.ReadInt64BigEndian(roomIdBuffer.AsSpan()[2..]);
+        var roomCreatePacket = new RoomCreationRequestPacket()
+        {
+            RoomType = new ClajRoomType { Type = RoomType },
+            Version = 4
+        };
+        
+        await SendTcp(roomCreatePacket, _linkedCancel.Token);
+        var roomIdPacket = await ReadOneFrameOf<RoomLinkPacket>();
+        RoomId = roomIdPacket.RoomId;
         
         // Room configuration packet
-        await SendTcp(new ReadOnlyMemory<byte>([0xFC, 12, 5, 0xFF, 0xFF, 0, 0]), _linkedCancel.Token);
+        var configPacket = new RoomConfigPacket
+        {
+            CanRequestHostState = true,
+            IsProtectedByPin = false,
+            IsPublic = true,
+            MaxClients = 0,
+            Pin = -1
+        };
+
+        await SendTcp(configPacket, _linkedCancel.Token);
     }
 
     public async Task JoinRoom(long roomId)
     {
         Debug.Assert(IsClient);
-        var joinRoom = BuildRoomJoinPacket(roomId);
-        await SendTcp(joinRoom, _linkedCancel.Token);
+        var joinRoomPacket = new RoomJoinPacket()
+        {
+            RoomId = roomId,
+            Pin = -1,
+            RoomType = RoomType,
+            WithPin = false
+        };
+
+        await SendTcp(joinRoomPacket, _linkedCancel.Token);
     }
 
     public void Run()
