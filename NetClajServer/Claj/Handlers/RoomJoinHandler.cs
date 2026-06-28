@@ -23,8 +23,15 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
     public async ValueTask HandleAsync(PacketContext context, RoomJoinPacket packet)
     {
         var isRequest = packet is RoomJoinRequestPacket;
+
+        _logger.LogInformation(
+            "Validating packet of type {packetType} to enter {RoomId} with: withPin={WithPin}, pin={Pin}, roomType={RoomType}",
+            packet.GetType().FullName, packet.RoomId, packet.WithPin, packet.Pin, packet.RoomType
+        );
         var validation = ValidateRequest(context, packet.RoomId, packet.WithPin, packet.Pin, packet.RoomType);
         
+        _logger.LogInformation("Validation result: {validationResult}", validation);
+
         if (validation != RoomRejection.Success)
         {
             if (isRequest)
