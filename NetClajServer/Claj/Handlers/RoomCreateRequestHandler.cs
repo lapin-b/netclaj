@@ -59,7 +59,7 @@ public class RoomCreateRequestHandler : IPacketHandler<RoomCreationRequestPacket
         }
 
         var room = _sessionsManager.CreateRoom(context.Connection, packet.RoomType);
-        _logger.LogInformation("Created room {@Room} ({roomIdStr}) for host {@Host}", room, room.IdString, context.Connection);
+        _logger.LogInformation("Created room {@Room} ({roomIdStr}) with type {roomType} for host {@Host}", room, room.IdString, packet.RoomType, context.Connection);
         
         await context.Connection.SendTcp(new RoomLinkPacket
         {
