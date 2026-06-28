@@ -23,8 +23,8 @@ public class RoomConfigPacket: MindustryPacket
     public override void Serialize(IBufferWriter<byte> writer)
     {
         var configFlags =
-            (IsPublic ? 1 : 0) << 2
-            | (IsProtectedByPin ? 1 : 0) << 1
+            ((IsPublic ? 1 : 0) << 2)
+            | ((IsProtectedByPin ? 1 : 0) << 1)
             | (CanRequestHostState ? 1 : 0);
 
         var config = (byte)configFlags;
