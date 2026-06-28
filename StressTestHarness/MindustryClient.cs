@@ -148,14 +148,29 @@ public class MindustryClient
 
         while (!ct.IsCancellationRequested)
         {
-            byte[] frame;
             try
             {
-                // TODO: Use new packet reading mechanism
-                frame = (await ReadOneFrameBytes()).ToArray();
+                var pipeRead = await _networkReader.ReadAsync(ct);
+                var buffer = pipeRead.Buffer;
+
+                while (PacketSlicer.TryReadFrame(ref buffer, out var payload))
+                {
+                    var packet = Serializer.Deserialize(payload);
+                    packet.TransportIsTcp = true;
+
+                    var processingTask = ProcessTcpPacket(packet);
+                    if (!processingTask.IsCompletedSuccessfully)
+                    {
+                        await processingTask;
+                    }
+                }
+                
+                _networkReader.AdvanceTo(buffer.Start, buffer.End);
             }
-            catch (SocketException e) when (e.SocketErrorCode is SocketError.ConnectionReset
-                                                or SocketError.ConnectionAborted)
+            catch (SocketException e) when (
+                e.SocketErrorCode is SocketError.ConnectionReset
+                or SocketError.ConnectionAborted
+            )
             {
                 Console.WriteLine(ConnectionId + " connection was reset while reading");
                 Stop();
@@ -200,6 +215,38 @@ public class MindustryClient
             
             // As a client, we don't care much what's going in on relay side.
         }
+            
+        }
+    }
+
+    {
+        // As a client, we don't care much what's going in on relay side.
+
+        if (!IsHost)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        switch (packet)
+        {
+            case ConnectionJoinPacket connectionJoinPacket:
+            {
+                // The test harness is really simplified since it's only meant for testing
+                var connectionId = connectionJoinPacket.ConnectionId;
+                Console.WriteLine($"{connectionId} joined room {RoomId}");
+                _connectionsInRoom.Add(connectionId);
+                break;
+            }
+            case ConnectionClosedPacket connectionClosedPacket:
+            {
+                var connectionId = connectionClosedPacket.ConnectionId;
+                Console.WriteLine($"{connectionId} left room {RoomId}");
+                _connectionsInRoom.Remove(connectionId);
+                break;
+            }
+        }
+
+        return ValueTask.CompletedTask;
     }
 
     private async Task UdpReceiveLoop(CancellationToken ct)
@@ -399,8 +446,9 @@ public class MindustryClient
         {
             var span = buffer.GetSpan(1);
             span[0] = 0x41;
-            buffer.Advance(1);
-            packetSize--;
+            span[1] = 0x41;
+            buffer.Advance(2);
+            packetSize -= 2;
         }
 
         switch (packetContentClass)
