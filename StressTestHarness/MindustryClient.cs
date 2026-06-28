@@ -3,7 +3,6 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Net.Sockets;
-using System.Text;
 using CommunityToolkit.HighPerformance.Buffers;
 using PacketHandling;
 using PacketHandling.Claj;
@@ -24,14 +23,10 @@ public class MindustryClient
 
     private readonly TcpClient _client;
     private readonly UdpClient _udpClient;
-    private readonly NetworkStream _netStream;
     private readonly PipeReader _networkReader;
     private readonly PipeWriter _networkWriter;
     private readonly SemaphoreSlim _networkWriterLock = new(1, 1);
     
-    private readonly byte[] _buffer = new byte[16 * 1024];
-    private int _bufferPosition;
-    private int _bufferEndPosition;
     private readonly CancellationTokenSource _ownCancel = new();
     private readonly CancellationTokenSource _linkedCancel;
 
@@ -52,10 +47,10 @@ public class MindustryClient
     {
         _client = new TcpClient(host, port);
         _udpClient = new UdpClient(host, port);
-        _netStream = _client.GetStream();
+        var netStream = _client.GetStream();
 
-        _networkReader = PipeReader.Create(_netStream);
-        _networkWriter = PipeWriter.Create(_netStream);
+        _networkReader = PipeReader.Create(netStream);
+        _networkWriter = PipeWriter.Create(netStream);
 
         _linkedCancel = CancellationTokenSource.CreateLinkedTokenSource(globalCancel, _ownCancel.Token);
     }
@@ -320,11 +315,6 @@ public class MindustryClient
         throw new Exception($"Expected packet {typeof(T)}, got {packet.GetType()}");
     }
     
-    private async Task<MindustryPacket> ReadOneFrame()
-    {
-        return Serializer.Deserialize(await ReadOneFrameBytes());
-    }
-
     private async Task<byte[]> ReadOneFrameBytes()
     {
         _linkedCancel.Token.ThrowIfCancellationRequested();
@@ -356,6 +346,7 @@ public class MindustryClient
             }
         }
     }
+
     private async Task SendTcp(MindustryPacket packet, CancellationToken ct)
     {
         try
@@ -420,39 +411,6 @@ public class MindustryClient
             default:
                 throw new ArgumentOutOfRangeException(nameof(packetContentClass), packetContentClass, "Content class must be between 0 and 2 inclusive");
         }
-
-        return buffer.WrittenMemory;
-    }
-    
-    private ReadOnlyMemory<byte> BuildCreateRoomPacket(string roomType)
-    {
-        // Protocol packet identification,
-        // Number zero as int (bypass UTF version check on the server),
-        // Protocol version number (short)
-        // Room type length (byte)
-        Span<byte> packetStart = [0xfc, 4, 0, 0, 0, 0, 0, 4, (byte)roomType.Length];
-        
-        var buffer = new ArrayBufferWriter<byte>(9 + roomType.Length);
-        buffer.Write(packetStart);
-        buffer.Write(Encoding.ASCII.GetBytes(roomType));
-
-        return buffer.WrittenMemory;
-    }
-
-    private ReadOnlyMemory<byte> BuildRoomJoinPacket(long roomId)
-    {
-        Span<byte> packetStart = [
-            0xfc, 7, // Packet identifier
-            0, 0, 0, 0, 0, 0, 0, 0, // Room Id
-            0, // with pin
-            0xff, 0xff, // blank pin
-            (byte)RoomType.Length
-        ];
-
-        var buffer = new ArrayBufferWriter<byte>(packetStart.Length + RoomType.Length);
-        BinaryPrimitives.WriteInt64BigEndian(packetStart[2..10], roomId);
-        buffer.Write(packetStart);
-        buffer.Write(Encoding.ASCII.GetBytes(RoomType));
 
         return buffer.WrittenMemory;
     }
