@@ -21,6 +21,11 @@ public static class BufferWriterExtensions
         
         public void WriteBool(bool b) => buffer.WriteIntegerBe((byte)(b ? 1 : 0));
 
-        public void WriteJavaUtf(string str) => buffer.Write(JavaDataObjectStream.EncodeUtf(str));
+        public void WriteJavaUtf(string str)
+        {
+            var encodedString = JavaDataObjectStream.EncodeUtf(str);
+            buffer.WriteIntegerBe((short)encodedString.Length);
+            buffer.Write(encodedString);
+        }
     }
 }
