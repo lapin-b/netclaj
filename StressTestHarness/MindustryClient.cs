@@ -3,7 +3,6 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Text;
 using CommunityToolkit.HighPerformance.Buffers;
 using PacketHandling;
@@ -186,39 +185,11 @@ public class MindustryClient
                 Console.WriteLine(ConnectionId + " " + e);
                 break;
             }
-
-            if (IsHost && frame[0] == 0xFC)
-            {
-                // Even if the client sends nonsense into the pipe, the relay will always package the random stuff
-                // into a raw packet wrapper.
-                
-                // A connection joins the party
-                if (frame[1] == 0)
-                {
-                    // The test harness is really simplified since it's only meant for testing
-                    var connectionId = BinaryPrimitives.ReadInt32BigEndian(frame.AsSpan()[2..6]);
-                    Console.WriteLine($"{connectionId} joined room {RoomId}");
-                    _connectionsInRoom.Add(connectionId);
-                }
-                // A connection has left the party
-                else if (frame[1] == 1)
-                {
-                    var connectionId = BinaryPrimitives.ReadInt32BigEndian(frame.AsSpan()[2..6]);
-                    Console.WriteLine($"{connectionId} left room {RoomId}");
-                    _connectionsInRoom.Remove(connectionId);
-                }
-                else if (frame[1] == 2)
-                {
-                    // Ignore whatever is sent here because it's just for load testing
-                }
-            }
-            
-            // As a client, we don't care much what's going in on relay side.
-        }
             
         }
     }
 
+    private ValueTask ProcessTcpPacket(MindustryPacket packet)
     {
         // As a client, we don't care much what's going in on relay side.
 
@@ -302,15 +273,33 @@ public class MindustryClient
             var packetContent = Random.Shared.Next(0, 3);
             var sendOverTcp = Random.Shared.NextDouble() < 0.66;
 
-            var bytes = RandomBullshitGo(packetSize, packetContent, sendOverTcp);
+            var bytes = RandomBullshitGo(packetSize, packetContent);
 
-            if (IsHost || sendOverTcp)
+            MindustryPacket packet;
+            if (IsHost)
             {
-                await SendTcp(bytes, ct);
+                packet = new ClajPayloadWrapping
+                {
+                    WrappedPacketIsTcp = sendOverTcp,
+                    Buffer = new ReadOnlySequence<byte>(bytes),
+                    ConnectionId = _connectionsInRoom[Random.Shared.Next(_connectionsInRoom.Count)]
+                };
             }
             else
             {
-                await _udpClient.SendAsync(bytes, ct);
+                packet = new GamePacket()
+                {
+                    Buffer = new ReadOnlySequence<byte>(bytes)
+                };
+            }
+
+            if (sendOverTcp || IsHost)
+            {
+                await SendTcp(packet, ct);
+            }
+            else
+            {
+                await SendUdp(packet);
             }
 
             await Task.Delay(CalculateDelay(), ct);
@@ -367,35 +356,6 @@ public class MindustryClient
             }
         }
     }
-
-    private async Task SendTcp(ReadOnlyMemory<byte> rawBytes, CancellationToken ct)
-    {
-        var header = ArrayPool<byte>.Shared.Rent(2);
-        try
-        {
-            BinaryPrimitives.WriteInt16BigEndian(header.AsSpan()[..2], (short)rawBytes.Length);
-
-            var segments = new ArraySegment<byte>[2];
-            segments[0] = new ArraySegment<byte>(header, 0, 2);
-            segments[1] = MemoryMarshal.TryGetArray(rawBytes, out var bytesSegment) ? bytesSegment : rawBytes.ToArray();
-            await _client.Client.SendAsync(segments);
-        }
-        catch (OperationCanceledException)
-        {
-            // no-op, we don't care
-        }
-        catch (SocketException e) when (e.SocketErrorCode is SocketError.ConnectionReset
-                                            or SocketError.ConnectionAborted)
-        {
-            Console.WriteLine(ConnectionId + " connection reset while sending stuff");
-            Stop();
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(header);
-        }
-    }
-
     private async Task SendTcp(MindustryPacket packet, CancellationToken ct)
     {
         try
@@ -425,31 +385,14 @@ public class MindustryClient
             : new ValueTask(task.AsTask());
     }
     
-    private ReadOnlyMemory<byte> RandomBullshitGo(int packetSize, int packetContentClass, bool sentOverTcp)
+    private ReadOnlyMemory<byte> RandomBullshitGo(int packetSize, int packetContentClass)
     {
-        // If is host:
-        // 2 bytes for TCP packet identification
-        // 4 bytes for destination identification
-        // 1 byte for relaying over TCP or UDP
-        var packetSizeHint = packetSize + (IsHost ? 7 : 0);
-        var buffer = new ArrayBufferWriter<byte>(packetSizeHint);
-
-        if (IsHost)
-        {
-            var destination = _connectionsInRoom[Random.Shared.Next(_connectionsInRoom.Count)];
-            
-            Span<byte> packetPreamble = [0xFC, 2, 0, 0, 0, 0, (byte)(sentOverTcp ? 1 : 0)];
-            BinaryPrimitives.WriteInt32BigEndian(packetPreamble[2..6], destination);
-            buffer.Write(packetPreamble);
-        }
-        else
-        {
-            var span = buffer.GetSpan(1);
-            span[0] = 0x41;
-            span[1] = 0x41;
-            buffer.Advance(2);
-            packetSize -= 2;
-        }
+        var buffer = new ArrayBufferWriter<byte>(packetSize);
+        var initialBytesSpan = buffer.GetSpan(2);
+        initialBytesSpan[0] = 0x41;
+        initialBytesSpan[1] = 0x41;
+        buffer.Advance(2);
+        packetSize -= 2;
 
         switch (packetContentClass)
         {
