@@ -34,6 +34,8 @@ public class RoomJoinHandler: IPacketHandler<RoomJoinPacket>, IPacketHandler<Roo
                     RoomId = packet.RoomId,
                     Reason = validation
                 });
+
+                return;
             }
             
             context.Connection.RequestClose(ArcNetDcReason.Closed);
