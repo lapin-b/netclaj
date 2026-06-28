@@ -21,6 +21,10 @@ public class RoomJoinPacket: MindustryPacket
     public override void Serialize(IBufferWriter<byte> writer)
     {
         writer.WriteIntegerBe(RoomId);
+        writer.WriteBool(WithPin);
+        writer.WriteIntegerBe(Pin ?? -1);
+        writer.WriteIntegerBe((byte)RoomType.Length);
+        writer.Write(Encoding.ASCII.GetBytes(RoomType));
     }
 
     public override PacketResult TryDeserialize(ref PacketReader reader)
