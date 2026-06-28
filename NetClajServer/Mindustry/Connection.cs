@@ -11,6 +11,7 @@ using NetClajServer.Metrics;
 using NetClajServer.Packets.Streaming;
 using PacketHandling;
 using PacketHandling.Framework;
+using PacketHandling.IO;
 using PacketHandling.Serialization;
 using PacketHandling.Streaming;
 
@@ -178,7 +179,7 @@ public partial class Connection
                 var pipeRead = await _networkReader.ReadAsync(token);
                 var buffer = pipeRead.Buffer;
 
-                while (TryReadFrame(ref buffer, out var payload))
+                while (PacketSlicer.TryReadFrame(ref buffer, out var payload))
                 {
                     _packetsWatch.Start(); // Start timer from the top of the loop
 
@@ -199,6 +200,14 @@ public partial class Connection
                     _packetsWatch.Reset();
                 }
 
+                /* buffer.Start points to the start of remaining data that were unable to form
+                   a complete packet. Everything before has been 'consumed' (i.e., sliced and processed)
+                   and can be freed from memory.
+                   
+                   buffer.End indicates we read "all the bytes" trying to extract a complete packet. To signal we need 
+                   more data, we pass buffer.End to tell Pipereader to not return until more bytes are read from the 
+                   network stream.
+                */
                 _networkReader.AdvanceTo(buffer.Start, buffer.End);
 
                 if (pipeRead.IsCompleted)
@@ -284,55 +293,5 @@ public partial class Connection
             _cts.Dispose();
             _closedTcs.TrySetResult();
         }
-    }
-
-    
-    private bool TryReadFrame(
-        ref ReadOnlySequence<byte> buffer,
-        out ReadOnlySequence<byte> payload
-    )
-    {
-        payload = default;
-
-        /*
-         * A valid TCP Mindustry frame contains a 2-bytes preamble indicating how long
-         * is the payload to come (a ushort) + n bytes of payload.
-         *
-         * The buffer must have enough bytes to extract a valid frame
-         */
-        if (buffer.Length < 2)
-        {
-            return false;
-        }
-
-        // Read the next packet length; it fits in an ushort
-
-        ushort packetLength;
-        var lengthSlice = buffer.Slice(0, 2);
-        if (lengthSlice.IsSingleSegment)
-        {
-            var segment = lengthSlice.First.Span;
-            packetLength = BinaryPrimitives.ReadUInt16BigEndian(segment);
-        }
-        else
-        {
-            Span<byte> packetLengthBytes = stackalloc byte[2];
-            buffer.Slice(0, 2).CopyTo(packetLengthBytes);
-            packetLength = BinaryPrimitives.ReadUInt16BigEndian(packetLengthBytes);
-        }
-        
-        long frameSize = 2 + packetLength;
-        if (buffer.Length < frameSize)
-        {
-            // Buffered network traffic is not enough for extract a valid frame
-            return false;
-        }
-
-        // Extract a frame while cutting-off the length. This allows the packet processing to be agnostic
-        // of the transport of the original packet.
-        payload = buffer.Slice(2, packetLength);
-        buffer = buffer.Slice(frameSize);
-
-        return true;
     }
 }
