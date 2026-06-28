@@ -32,6 +32,6 @@ public record struct ClajRoomType
     public void Serialize(IBufferWriter<byte> writer)
     {
         writer.WriteIntegerBe((byte)Type.Length);
-        writer.Write(MemoryMarshal.AsBytes(Type.AsSpan()));
+        writer.Write(Encoding.ASCII.GetBytes(Type));
     }
 }
